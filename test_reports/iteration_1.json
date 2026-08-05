@@ -1,0 +1,31 @@
+{
+  "summary": "Full-stack testing of Akasha Forge foundation. Backend: 7/7 pytest tests passed covering providers seeding (8 defaults), category filter, provider enable+is_default (with unset of other defaults in same category), projects full CRUD, settings GET and partial PUT persistence. Frontend: dashboard loads at / with 4 stat cards, 14 sidebar nav links resolve, sidebar collapse works, project CRUD via UI (create -> appears in Recent/list -> activate -> delete with confirm) persists to backend, command palette opens on Ctrl+K, Settings > AI Providers lists 8 rows and toggling switches persists (top-bar AI Status updated from '2 active' to '3 active'), Settings > General autosave toggle triggers 'Settings saved' toast (persisted to backend). All 8 data-testid navs verified: nav-akasha-core, nav-story-forge, nav-character-forge, nav-world-forge, nav-image-forge, nav-video-forge, nav-voice-forge, nav-music-forge, nav-workflow-forge, nav-publish-forge, nav-assets, nav-projects, nav-plugin-forge, nav-settings.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Modals (CreateProject / CommandPalette)", "issues": ["Radix DialogContent console warning: `DialogContent` requires a `DialogTitle` for accessibility. Wrap with VisuallyHidden if the title should be hidden. Minor a11y issue only."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional/a11y) Add a DialogTitle (or VisuallyHidden wrapper) to CreateProjectDialog and CommandPalette DialogContent to satisfy Radix a11y warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py: `logger` is referenced inside seed_defaults() before logging.basicConfig runs at import time — works today because startup runs after module load, but the file orders logger config after route defs; consider moving logging setup to top of file.",
+    "server.py: `update_settings` performs a shallow $set on top-level keys (general/appearance/etc.). A partial update like {'general': {'autosave': false}} REPLACES the whole general subdocument, potentially wiping other keys. Frontend currently sends the merged object, but consider using dotted keys or a deep-merge to make the API safer.",
+    "server.py: no unique index on providers.id/projects.id — recommend db.projects.create_index('id', unique=True).",
+    "server.py: CORS uses CORS_ORIGINS='*' with allow_credentials=True; browsers ignore credentials with wildcard, acceptable for MVP but flag for prod hardening."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "N/A (no auth)",
+  "seed_data_creation": "None persisted (test project TEST_UI_Project created and deleted via UI; test toggles restored). 8 default providers auto-seeded by backend on startup.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend pytest at /app/backend/tests/backend_test.py — reuse. Frontend sidebar nav testids are lowercased+hyphenated (nav-akasha-core, nav-projects, nav-settings, etc.). Settings nav testids: settings-nav-general, settings-nav-appearance, settings-nav-ai-providers, settings-nav-language, settings-nav-publishing, settings-nav-storage, settings-nav-updates, settings-nav-shortcuts. AI Status widget text format: 'AI<n> active'."
+}
