@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useCreateProject } from "./hooks";
 import { useApp } from "@/store/app-context";
@@ -45,18 +46,35 @@ export function CreateProjectDialog({ open, onOpenChange }: Props) {
   const [color, setColor] = useState(COLORS[0]);
   const create = useCreateProject();
   const { setActiveProjectId } = useApp();
+  const navigate = useNavigate();
 
   const submit = async () => {
     if (!name.trim()) {
       toast.error("Project name is required");
       return;
     }
-    const project = await create.mutateAsync({ name: name.trim(), description, type, color });
-    setActiveProjectId(project.id);
-    toast.success(`“${project.name}” created`);
-    setName("");
-    setDescription("");
-    onOpenChange(false);
+    try {
+      const project = await create.mutateAsync({ name: name.trim(), description, type, color });
+      if (!project?.id) {
+        throw new Error("Server did not return a project id");
+      }
+      setActiveProjectId(project.id);
+      toast.success(`“${project.name}” created`);
+      setName("");
+      setDescription("");
+      onOpenChange(false);
+      navigate("/");
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail;
+      toast.error(
+        detail
+          ? `Could not create project: ${detail}`
+          : status
+            ? `Could not create project (error ${status}). Please try again.`
+            : "Could not create project. Please check your connection and try again."
+      );
+    }
   };
 
   return (
