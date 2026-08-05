@@ -55,3 +55,12 @@ Backend split into `core.py` + `routes/` package (clean architecture). New:
 - **Object storage**: file upload/serve via Emergent object storage (character references, image sources).
 
 Frontend: extended existing design system, new nav item (Akasha Brain), ModuleShell enhanced with per-tab `content`. No modules rebuilt/redesigned.
+
+## Framework Completion Sprint (2026-06)
+Built ONE reusable Forge CRUD framework and applied it consistently (no per-module CRUD duplication):
+- **Backend**: generic `forge_items` collection + `routes/forge_items.py` (list/create/get/update/delete by project+module+kind). Cascade-deletes with project. Added `ai_prompt` to Character.
+- **Frontend shared**: `features/forge/hooks.ts`, `components/forge/ItemFormModal.tsx` (schema-driven form + friendly error toasts), `ForgeWorkspace.tsx` (header + tabs + list + create/edit/delete), `ProviderRequired.tsx`.
+- **Applied to**: Story (chapters/drafts/beats + bible), World (locations/factions/rules/timeline + bible), Video (scenes/shots-with-scene-ref/render queue), Voice (voice profiles), Music (briefs + bible), Image (canvas upload→persisted assets, galleries, assets grid, gated generation), Workflow (node/edge graph editor persisting to Mongo).
+- **Character Forge extended**: added "Create with AI" prompt mode (prompt persisted) + Consistency tab; quick-create still opens the full editor.
+- Provider-required (not fake) states for image/video/voice/music. Friendly toasts everywhere; no React error overlay.
+- Verified: testing agent 100% — backend 21/21, all frontend CRUD + F5-persistence flows pass. Applied a11y fix (action buttons no longer hover-only).
