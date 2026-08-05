@@ -119,6 +119,9 @@ async def delete_project(project_id: str):
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Project not found")
     # cascade project-scoped data
+    char_ids = [c["id"] async for c in db.characters.find({"project_id": project_id}, {"_id": 0, "id": 1})]
+    if char_ids:
+        await db.character_versions.delete_many({"character_id": {"$in": char_ids}})
     for coll in ("characters", "bibles", "production_nodes", "image_jobs"):
         await db[coll].delete_many({"project_id": project_id})
     return {"ok": True}
