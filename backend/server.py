@@ -229,15 +229,24 @@ async def get_settings():
 
 @api_router.put("/settings", response_model=Settings)
 async def update_settings(body: Dict[str, Any]):
-    body["updated_at"] = now_iso()
-    body["id"] = "global"
-    await db.settings.update_one({"id": "global"}, {"$set": body}, upsert=True)
+    existing = await db.settings.find_one({"id": "global"}, {"_id": 0}) or {}
+    merged = dict(existing)
+    for key, value in body.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = {**merged[key], **value}
+        else:
+            merged[key] = value
+    merged["updated_at"] = now_iso()
+    merged["id"] = "global"
+    await db.settings.update_one({"id": "global"}, {"$set": merged}, upsert=True)
     doc = await db.settings.find_one({"id": "global"}, {"_id": 0})
     return doc
 
 
 @app.on_event("startup")
 async def seed_defaults():
+    await db.projects.create_index("id", unique=True)
+    await db.providers.create_index("id", unique=True)
     if await db.providers.count_documents({}) == 0:
         providers = [Provider(**p).model_dump() for p in DEFAULT_PROVIDERS]
         await db.providers.insert_many(providers)
