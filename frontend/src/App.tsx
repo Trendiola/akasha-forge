@@ -4,6 +4,7 @@ import { AppProvider } from "@/store/app-context";
 import { AppShell } from "@/components/layout/AppShell";
 
 import AkashaCore from "@/modules/akasha-core";
+import AkashaBrain from "@/modules/akasha-brain";
 import StoryForge from "@/modules/story-forge";
 import CharacterForge from "@/modules/character-forge";
 import WorldForge from "@/modules/world-forge";
@@ -26,6 +27,7 @@ export default function App() {
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<AkashaCore />} />
+            <Route path="brain" element={<AkashaBrain />} />
             <Route path="story" element={<StoryForge />} />
             <Route path="character" element={<CharacterForge />} />
             <Route path="world" element={<WorldForge />} />

@@ -42,3 +42,16 @@ Build the foundation of a production-quality, desktop-first AI Creative Operatin
 - Story/World/Character bible editors within a project context.
 - Provider "Add provider" dialog + credential storage.
 - Tauri config scaffold.
+
+## V2.0 Implemented (2026-06)
+Backend split into `core.py` + `routes/` package (clean architecture). New:
+- **Character Consistency Engine** (flagship): full Character Bible — appearance lock, reference images (object storage), outfits/expressions/props libraries, voice assignment, personality/traits/backstory, relationships, character memory, color palette, age/height, version history (snapshot + restore).
+- **Project Bible**: Story/World/Style/Camera/Music/Publishing/Brand bibles, sectioned, persisted in MongoDB (permanent project memory). Wired into Story/World/Music/Image(style)/Video(camera) modules.
+- **Provider Hub**: adapter-based capability framework, states (not_configured/configured/ready/error/disabled), encrypted API keys (Fernet), connection testing (local format validation, no inference), priority, default, enable/disable, add/delete, supported features. No hardcoded providers.
+- **Akasha Brain**: Command Center (engine coverage), Prompt Optimizer + Assistant (Claude Sonnet 4.6 via Emergent key), Project Context Loader (aggregates bibles + locked characters into context).
+- **Scene Production**: Project→Acts→Chapters→Scenes→Shots tree (architecture only), cascade delete.
+- **Publish Forge Pro**: Campaign Manager, Scheduler, Publishing Queue, month Calendar (6 platforms, no live integrations).
+- **Image Forge AI Editing**: provider-independent operation interfaces (object removal, background replacement, inpainting, outpainting, upscaling) + job queue resolving default image provider.
+- **Object storage**: file upload/serve via Emergent object storage (character references, image sources).
+
+Frontend: extended existing design system, new nav item (Akasha Brain), ModuleShell enhanced with per-tab `content`. No modules rebuilt/redesigned.

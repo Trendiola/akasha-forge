@@ -12,10 +12,17 @@ export function useProviders(category?: ProviderCategory) {
   });
 }
 
+export function useProviderCategories() {
+  return useQuery({
+    queryKey: ["provider-categories"],
+    queryFn: async () => (await api.get("/provider-categories")).data,
+  });
+}
+
 export function useUpdateProvider() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...patch }: Partial<Provider> & { id: string }): Promise<Provider> =>
+    mutationFn: async ({ id, ...patch }: Partial<Provider> & { id: string; api_key?: string }): Promise<Provider> =>
       (await api.put(`/providers/${id}`, patch)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
@@ -24,8 +31,24 @@ export function useUpdateProvider() {
 export function useCreateProvider() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: Partial<Provider>): Promise<Provider> =>
+    mutationFn: async (payload: Record<string, any>): Promise<Provider> =>
       (await api.post("/providers", payload)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+export function useDeleteProvider() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => (await api.delete(`/providers/${id}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+export function useTestProvider() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => (await api.post(`/providers/${id}/test`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }

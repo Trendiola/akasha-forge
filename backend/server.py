@@ -1,43 +1,34 @@
 from fastapi import FastAPI, APIRouter, HTTPException
-from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
-from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
-import uuid
-from datetime import datetime, timezone
+from pydantic import BaseModel, Field, ConfigDict
 
-
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
-
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+from core import db, new_id, now_iso, init_storage, logger
+from routes import (
+    files as files_route,
+    characters as characters_route,
+    bibles as bibles_route,
+    providers_hub,
+    brain as brain_route,
+    production as production_route,
+    publish as publish_route,
+    image_edit as image_edit_route,
+)
 
 app = FastAPI(title="Akasha Forge API")
 api_router = APIRouter(prefix="/api")
 
 
-def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def new_id() -> str:
-    return str(uuid.uuid4())
-
-
-# ----------------------------- Models -----------------------------
+# ----------------------------- Projects -----------------------------
 class Project(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=new_id)
     name: str
     description: str = ""
-    type: str = "story"          # story | film | game | album | book
-    status: str = "active"       # active | archived | draft
+    type: str = "story"
+    status: str = "active"
     color: str = "#6D3BFF"
     tags: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -63,39 +54,6 @@ class ProjectUpdate(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
-class Provider(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=new_id)
-    name: str
-    category: str                # llm | image | video | voice | music | translation | publishing
-    kind: str = "api"            # api | local | plugin
-    base_url: str = ""
-    enabled: bool = False
-    is_default: bool = False
-    models: List[str] = Field(default_factory=list)
-    config: Dict[str, Any] = Field(default_factory=dict)
-    created_at: str = Field(default_factory=now_iso)
-    updated_at: str = Field(default_factory=now_iso)
-
-
-class ProviderCreate(BaseModel):
-    name: str
-    category: str
-    kind: str = "api"
-    base_url: str = ""
-    models: List[str] = Field(default_factory=list)
-    config: Dict[str, Any] = Field(default_factory=dict)
-
-
-class ProviderUpdate(BaseModel):
-    name: Optional[str] = None
-    base_url: Optional[str] = None
-    enabled: Optional[bool] = None
-    is_default: Optional[bool] = None
-    models: Optional[List[str]] = None
-    config: Optional[Dict[str, Any]] = None
-
-
 class Settings(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = "global"
@@ -107,17 +65,6 @@ class Settings(BaseModel):
     shortcuts: Dict[str, Any] = Field(default_factory=dict)
     updated_at: str = Field(default_factory=now_iso)
 
-
-DEFAULT_PROVIDERS = [
-    {"name": "OpenAI", "category": "llm", "base_url": "https://api.openai.com/v1", "models": ["gpt-5.4", "gpt-5.4-mini"]},
-    {"name": "Anthropic", "category": "llm", "base_url": "https://api.anthropic.com", "models": ["claude-sonnet-4.6"]},
-    {"name": "Google Gemini", "category": "llm", "base_url": "https://generativelanguage.googleapis.com", "models": ["gemini-3.1-pro"]},
-    {"name": "Stable Diffusion", "category": "image", "base_url": "", "models": ["sdxl"]},
-    {"name": "Runway", "category": "video", "base_url": "https://api.runwayml.com", "models": ["gen-3"]},
-    {"name": "ElevenLabs", "category": "voice", "base_url": "https://api.elevenlabs.io", "models": ["multilingual-v2"]},
-    {"name": "Suno", "category": "music", "base_url": "", "models": ["v4"]},
-    {"name": "DeepL", "category": "translation", "base_url": "https://api.deepl.com", "models": []},
-]
 
 DEFAULT_SETTINGS = {
     "id": "global",
@@ -131,17 +78,14 @@ DEFAULT_SETTINGS = {
 }
 
 
-# ----------------------------- Routes -----------------------------
 @api_router.get("/")
 async def root():
-    return {"message": "Akasha Forge API", "status": "online"}
+    return {"message": "Akasha Forge API", "status": "online", "version": "2.0"}
 
 
-# Projects
 @api_router.get("/projects", response_model=List[Project])
 async def list_projects():
-    docs = await db.projects.find({}, {"_id": 0}).sort("updated_at", -1).to_list(1000)
-    return docs
+    return await db.projects.find({}, {"_id": 0}).sort("updated_at", -1).to_list(1000)
 
 
 @api_router.post("/projects", response_model=Project)
@@ -166,8 +110,7 @@ async def update_project(project_id: str, body: ProjectUpdate):
     res = await db.projects.update_one({"id": project_id}, {"$set": updates})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Project not found")
-    doc = await db.projects.find_one({"id": project_id}, {"_id": 0})
-    return doc
+    return await db.projects.find_one({"id": project_id}, {"_id": 0})
 
 
 @api_router.delete("/projects/{project_id}")
@@ -175,56 +118,17 @@ async def delete_project(project_id: str):
     res = await db.projects.delete_one({"id": project_id})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Project not found")
+    # cascade project-scoped data
+    for coll in ("characters", "bibles", "production_nodes", "image_jobs"):
+        await db[coll].delete_many({"project_id": project_id})
     return {"ok": True}
 
 
-# Providers
-@api_router.get("/providers", response_model=List[Provider])
-async def list_providers(category: Optional[str] = None):
-    query = {"category": category} if category else {}
-    docs = await db.providers.find(query, {"_id": 0}).to_list(1000)
-    return docs
-
-
-@api_router.post("/providers", response_model=Provider)
-async def create_provider(body: ProviderCreate):
-    provider = Provider(**body.model_dump())
-    await db.providers.insert_one(provider.model_dump())
-    return provider
-
-
-@api_router.put("/providers/{provider_id}", response_model=Provider)
-async def update_provider(provider_id: str, body: ProviderUpdate):
-    updates = {k: v for k, v in body.model_dump().items() if v is not None}
-    updates["updated_at"] = now_iso()
-    if updates.get("is_default"):
-        target = await db.providers.find_one({"id": provider_id}, {"_id": 0})
-        if target:
-            await db.providers.update_many(
-                {"category": target["category"]}, {"$set": {"is_default": False}}
-            )
-    res = await db.providers.update_one({"id": provider_id}, {"$set": updates})
-    if res.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Provider not found")
-    doc = await db.providers.find_one({"id": provider_id}, {"_id": 0})
-    return doc
-
-
-@api_router.delete("/providers/{provider_id}")
-async def delete_provider(provider_id: str):
-    res = await db.providers.delete_one({"id": provider_id})
-    if res.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Provider not found")
-    return {"ok": True}
-
-
-# Settings
+# ----------------------------- Settings -----------------------------
 @api_router.get("/settings", response_model=Settings)
 async def get_settings():
     doc = await db.settings.find_one({"id": "global"}, {"_id": 0})
-    if not doc:
-        return Settings(**DEFAULT_SETTINGS)
-    return doc
+    return doc or Settings(**DEFAULT_SETTINGS)
 
 
 @api_router.put("/settings", response_model=Settings)
@@ -239,40 +143,45 @@ async def update_settings(body: Dict[str, Any]):
     merged["updated_at"] = now_iso()
     merged["id"] = "global"
     await db.settings.update_one({"id": "global"}, {"$set": merged}, upsert=True)
-    doc = await db.settings.find_one({"id": "global"}, {"_id": 0})
-    return doc
+    return await db.settings.find_one({"id": "global"}, {"_id": 0})
 
 
-@app.on_event("startup")
-async def seed_defaults():
-    await db.projects.create_index("id", unique=True)
-    await db.providers.create_index("id", unique=True)
-    if await db.providers.count_documents({}) == 0:
-        providers = [Provider(**p).model_dump() for p in DEFAULT_PROVIDERS]
-        await db.providers.insert_many(providers)
-        logger.info("Seeded %d default providers", len(providers))
-    if await db.settings.count_documents({"id": "global"}) == 0:
-        await db.settings.insert_one(dict(DEFAULT_SETTINGS))
-        logger.info("Seeded default settings")
-
-
+# ----------------------------- Wire routers -----------------------------
 app.include_router(api_router)
+app.include_router(files_route.router)
+app.include_router(characters_route.router)
+app.include_router(bibles_route.router)
+app.include_router(providers_hub.router)
+app.include_router(brain_route.router)
+app.include_router(production_route.router)
+app.include_router(publish_route.router)
+app.include_router(image_edit_route.router)
 
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+
+@app.on_event("startup")
+async def on_startup():
+    await db.projects.create_index("id", unique=True)
+    await providers_hub.seed_providers()
+    if await db.settings.count_documents({"id": "global"}) == 0:
+        await db.settings.insert_one(dict(DEFAULT_SETTINGS))
+    try:
+        init_storage()
+        logger.info("Object storage initialized")
+    except Exception as exc:
+        logger.warning("Storage init deferred: %s", exc)
 
 
 @app.on_event("shutdown")
-async def shutdown_db_client():
+async def on_shutdown():
+    from core import client
     client.close()

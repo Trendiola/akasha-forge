@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  BrainCircuit,
   BookOpen,
   Users,
   Globe2,
@@ -51,6 +52,21 @@ export const MODULES: ModuleDef[] = [
       { id: "insights", label: "Insights" },
     ],
     capabilities: ["Unified dashboard", "Cross-module search", "Recent activity"],
+  },
+  {
+    id: "akasha-brain",
+    label: "Akasha Brain",
+    path: "/brain",
+    icon: BrainCircuit,
+    tagline: "AI command center",
+    description: "The intelligence layer — prompt optimization, project context and a creative co-pilot.",
+    accent: "#6D3BFF",
+    tabs: [
+      { id: "command", label: "Command Center" },
+      { id: "optimizer", label: "Prompt Optimizer" },
+      { id: "assistant", label: "Assistant" },
+    ],
+    capabilities: ["Prompt Optimizer", "Context Engine", "Creative co-pilot"],
   },
   {
     id: "story-forge",
@@ -251,7 +267,7 @@ const m = (id: string): NavItem => {
 };
 
 export const NAV_SECTIONS: NavSection[] = [
-  { title: "Overview", items: [m("akasha-core")] },
+  { title: "Overview", items: [m("akasha-core"), m("akasha-brain")] },
   {
     title: "Create",
     items: [

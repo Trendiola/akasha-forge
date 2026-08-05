@@ -30,6 +30,14 @@ export interface Provider {
   base_url: string;
   enabled: boolean;
   is_default: boolean;
+  priority: number;
+  status: "not_configured" | "configured" | "validating" | "ready" | "error" | "disabled";
+  error_message: string;
+  features: string[];
+  supported_features: string[];
+  configured: boolean;
+  api_key_masked: string;
+  last_validated: string;
   models: string[];
   config: Record<string, unknown>;
   created_at: string;

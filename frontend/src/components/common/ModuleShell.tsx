@@ -1,3 +1,4 @@
+import React from "react";
 import { Link } from "react-router-dom";
 import { Plus, Sparkles, FolderOpen, CircleDashed } from "lucide-react";
 import type { ModuleDef } from "@/config/modules";
@@ -11,9 +12,11 @@ import { useProjects } from "@/features/projects/hooks";
 
 interface ModuleShellProps {
   module: ModuleDef;
+  content?: Record<string, React.ReactNode>;
+  requireProject?: boolean;
 }
 
-export function ModuleShell({ module }: ModuleShellProps) {
+export function ModuleShell({ module, content, requireProject = true }: ModuleShellProps) {
   const { activeProjectId } = useApp();
   const { data: projects = [] } = useProjects();
   const activeProject = projects.find((p) => p.id === activeProjectId);
@@ -52,7 +55,7 @@ export function ModuleShell({ module }: ModuleShellProps) {
       </div>
 
       {/* Project context banner */}
-      {!activeProject && (
+      {requireProject && !activeProject && (
         <div className="mb-6 flex items-center gap-3 rounded-xl border border-border bg-card/50 px-4 py-3 text-sm">
           <CircleDashed className="h-4 w-4 text-muted-foreground" />
           <span className="text-muted-foreground">
@@ -82,25 +85,29 @@ export function ModuleShell({ module }: ModuleShellProps) {
 
         {module.tabs.map((tab) => (
           <TabsContent key={tab.id} value={tab.id} className="mt-0">
-            <EmptyState
-              icon={module.icon}
-              accent={module.accent}
-              title={`${tab.label} is ready to build`}
-              description={
-                activeProject
-                  ? `Start creating ${tab.label.toLowerCase()} for “${activeProject.name}”. This workspace is scaffolded and ready for AI generation once providers are connected.`
-                  : `This ${tab.label.toLowerCase()} workspace is fully scaffolded. Select a project to begin.`
-              }
-              action={
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  data-testid={`${module.id}-${tab.id}-create`}
-                >
-                  <Plus className="h-4 w-4" /> Create {tab.label}
-                </Button>
-              }
-            />
+            {content && content[tab.id] !== undefined ? (
+              content[tab.id]
+            ) : (
+              <EmptyState
+                icon={module.icon}
+                accent={module.accent}
+                title={`${tab.label} is ready to build`}
+                description={
+                  activeProject
+                    ? `Start creating ${tab.label.toLowerCase()} for “${activeProject.name}”. This workspace is scaffolded and ready for AI generation once providers are connected.`
+                    : `This ${tab.label.toLowerCase()} workspace is fully scaffolded. Select a project to begin.`
+                }
+                action={
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    data-testid={`${module.id}-${tab.id}-create`}
+                  >
+                    <Plus className="h-4 w-4" /> Create {tab.label}
+                  </Button>
+                }
+              />
+            )}
           </TabsContent>
         ))}
       </Tabs>
