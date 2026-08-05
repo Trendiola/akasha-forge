@@ -39,19 +39,31 @@ export default function WorkflowForge() {
 
   const newFlow = async () => {
     if (!name.trim()) return toast.error("Workflow name required");
-    const f = await create.mutateAsync({ kind: "workflow", title: name.trim(), data: { nodes: [], edges: [] } });
-    setName(""); setSelectedId(f.id);
-    toast.success("Workflow created");
+    try {
+      const f = await create.mutateAsync({ kind: "workflow", title: name.trim(), data: { nodes: [], edges: [] } });
+      setName(""); setSelectedId(f.id);
+      toast.success("Workflow created");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? "Could not create workflow. Please try again.");
+    }
   };
 
   const save = async () => {
     if (!selected) return;
-    await update.mutateAsync({ id: selected.id, data: { nodes: draft.nodes, edges: draft.edges } });
-    toast.success("Workflow saved");
+    try {
+      await update.mutateAsync({ id: selected.id, data: { nodes: draft.nodes, edges: draft.edges } });
+      toast.success("Workflow saved");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? "Could not save workflow. Please try again.");
+    }
   };
 
   const rename = async (f: ForgeItem, title: string) => {
-    await update.mutateAsync({ id: f.id, title });
+    try {
+      await update.mutateAsync({ id: f.id, title });
+    } catch {
+      toast.error("Could not rename workflow.");
+    }
   };
 
   const addNode = () => {

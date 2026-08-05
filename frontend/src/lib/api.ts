@@ -1,4 +1,5 @@
 import axios from "axios";
+import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -6,6 +7,25 @@ export const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
   headers: { "Content-Type": "application/json" },
 });
+
+// Safety net: surface gateway/network failures (e.g. 502/503/504 during a
+// backend restart) as a friendly toast instead of a silent failure or overlay.
+let lastGatewayToast = 0;
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    const status = error?.response?.status;
+    const isGateway = !error?.response || [502, 503, 504].includes(status);
+    if (isGateway) {
+      const now = Date.now();
+      if (now - lastGatewayToast > 3000) {
+        lastGatewayToast = now;
+        toast.error("The server is briefly unavailable. Please try again in a moment.");
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const API_BASE = `${BACKEND_URL}/api`;
 

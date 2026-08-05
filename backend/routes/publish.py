@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
 
-from core import db, new_id, now_iso
+from core import db, new_id, now_iso, logger
 
 router = APIRouter(prefix="/api", tags=["publish"])
 
@@ -73,9 +73,14 @@ async def list_campaigns():
 
 @router.post("/publish/campaigns", response_model=Campaign)
 async def create_campaign(body: CampaignCreate):
-    c = Campaign(**body.model_dump())
-    await db.campaigns.insert_one(c.model_dump())
-    return c
+    try:
+        c = Campaign(**body.model_dump())
+        await db.campaigns.insert_one(c.model_dump())
+        logger.info("Created campaign %s", c.id)
+        return c
+    except Exception:
+        logger.exception("Failed to create campaign")
+        raise HTTPException(status_code=500, detail="Could not create campaign")
 
 
 @router.delete("/publish/campaigns/{campaign_id}")
@@ -94,9 +99,14 @@ async def list_posts(status: Optional[str] = None):
 
 @router.post("/publish/posts", response_model=Post)
 async def create_post(body: PostCreate):
-    p = Post(**body.model_dump())
-    await db.posts.insert_one(p.model_dump())
-    return p
+    try:
+        p = Post(**body.model_dump())
+        await db.posts.insert_one(p.model_dump())
+        logger.info("Created post %s", p.id)
+        return p
+    except Exception:
+        logger.exception("Failed to create post")
+        raise HTTPException(status_code=500, detail="Could not create post")
 
 
 @router.put("/publish/posts/{post_id}", response_model=Post)

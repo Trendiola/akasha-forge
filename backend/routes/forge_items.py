@@ -9,7 +9,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
 
-from core import db, new_id, now_iso
+from core import db, new_id, now_iso, logger
 
 router = APIRouter(prefix="/api", tags=["forge"])
 
@@ -49,10 +49,15 @@ async def list_items(project_id: str, module: str, kind: Optional[str] = None):
 
 @router.post("/projects/{project_id}/forge/{module}", response_model=ForgeItem)
 async def create_item(project_id: str, module: str, body: ForgeItemCreate):
-    count = await db.forge_items.count_documents({"project_id": project_id, "module": module, "kind": body.kind})
-    item = ForgeItem(project_id=project_id, module=module, kind=body.kind, title=body.title or "Untitled", data=body.data, order=count)
-    await db.forge_items.insert_one(item.model_dump())
-    return item
+    try:
+        count = await db.forge_items.count_documents({"project_id": project_id, "module": module, "kind": body.kind})
+        item = ForgeItem(project_id=project_id, module=module, kind=body.kind, title=body.title or "Untitled", data=body.data, order=count)
+        await db.forge_items.insert_one(item.model_dump())
+        logger.info("Created forge item %s (%s/%s) in project %s", item.id, module, body.kind, project_id)
+        return item
+    except Exception:
+        logger.exception("Failed to create forge item %s/%s in project %s", module, body.kind, project_id)
+        raise HTTPException(status_code=500, detail="Could not create item")
 
 
 @router.get("/forge-items/{item_id}", response_model=ForgeItem)

@@ -1,0 +1,31 @@
+{
+  "summary": "Sprint reliability regression testing. Focused on the 4 creation endpoints that previously reported transient 502s (Character Quick Create, Workflow create, Publish campaign, Publish post) plus the friendly-toast / no-React-overlay expectation. Backend: added /app/backend/tests/test_sprint_creation_endpoints.py (7 pytest cases) covering POST /api/projects/{pid}/characters, POST /api/projects/{pid}/forge/workflow (kind=graph), POST /api/publish/campaigns, POST /api/publish/posts. Each test asserts status 200, valid JSON body with an id, and does a follow-up GET (or list) to verify persistence. Also added validation edge cases (missing name -> 422, minimal-field creates). All 7 pass (100%). Existing forge_items + core backend_test.py suites also pass (35 total). Frontend: Playwright verified project creation, Character Quick Create in Character Forge (visible after F5 reload), Workflow Forge create (visible after F5), Publish Forge campaign + post create on Releases tab (both persist across reload). No React runtime error overlay observed; no page errors captured. Cleaned up TEST_ projects/posts/campaigns via API.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_sprint_creation_endpoints.py",
+    "/app/test_reports/pytest/sprint_creation.xml",
+    "/app/test_reports/pytest/full.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "test_v2_extensions.py has a pre-existing test-infra bug: it uses relative URLs (/api/files/upload etc.) without BASE_URL prefix, causing 7 failures + 3 errors. Not sprint-related but should be fixed by main agent to keep regression suite green.",
+    "publish.py delete_campaign returns 200 even when campaign_id does not exist (no 404). Minor idempotency choice — acceptable but inconsistent with delete_character/delete_item which 404.",
+    "publish.py create_post accepts arbitrary status string without validation (should be one of draft|scheduled|queued|published). Minor — Pydantic Literal would harden this.",
+    "Global axios gateway-error toast interceptor requires manual verification under an actual 502 (couldn't induce one during test — service was healthy). Recommend a quick manual test by temporarily blackholing /api or using a mock."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sprint_creation_endpoints.py (new)"
+  ],
+  "success_rate": { "backend": "100% (7/7 sprint tests, 35/35 combined with forge+core suites)", "frontend": "100% (all 4 sprint creation flows + F5 persistence)" },
+  "test_credentials": "None (no auth)",
+  "seed_data_creation": "TEST_sprint_regression (pytest module-scope, auto-cleaned), TEST_sprint_ui + descendants (Playwright, cleaned via API).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "ForgeItem uses field name 'title' (not 'name') both in create body and response. Publish Forge tabs = channels|releases|schedule with testids publish-forge-tab-{tab}; new post button is on the 'releases' tab. Character POST route is /api/projects/{pid}/characters (project_id in URL, not body). Workflow create backend call is POST /api/projects/{pid}/forge/workflow with body {kind: 'graph', title: '...', data: {...}}. The 502 issue reported by user was transient (dev-server restart window) — all 4 creation endpoints now return 200 with valid JSON and include try/except wrappers per code review.",
+  "rca of the issue": "Original 502s were transient (backend hot-reload window during dev). Sprint hardening added: (1) try/except returning JSON 500 in create_character/create_item/create_campaign/create_post so any future failure surfaces as a structured error instead of a gateway page, (2) toast handling in Workflow Forge + Publish Forge mutations, (3) global axios interceptor for 502/503/504/no-response. Regression tests now guarantee all 4 endpoints return 200 with an id and persistence works end-to-end."
+}

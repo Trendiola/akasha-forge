@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
 
-from core import db, new_id, now_iso
+from core import db, new_id, now_iso, logger
 
 router = APIRouter(prefix="/api", tags=["characters"])
 
@@ -125,9 +125,14 @@ async def list_characters(project_id: str):
 
 @router.post("/projects/{project_id}/characters", response_model=Character)
 async def create_character(project_id: str, body: CharacterCreate):
-    character = Character(project_id=project_id, **body.model_dump())
-    await db.characters.insert_one(character.model_dump())
-    return character
+    try:
+        character = Character(project_id=project_id, **body.model_dump())
+        await db.characters.insert_one(character.model_dump())
+        logger.info("Created character %s in project %s", character.id, project_id)
+        return character
+    except Exception:
+        logger.exception("Failed to create character in project %s", project_id)
+        raise HTTPException(status_code=500, detail="Could not create character")
 
 
 @router.get("/characters/{character_id}", response_model=Character)

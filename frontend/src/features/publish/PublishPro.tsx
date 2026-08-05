@@ -32,7 +32,7 @@ export function CampaignManager() {
     <div className="space-y-4" data-testid="campaign-manager">
       <div className="flex gap-2">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New campaign name…" data-testid="campaign-name-input" />
-        <Button className="gap-1.5" onClick={async () => { if (!name.trim()) return; await create.mutateAsync({ name: name.trim() }); setName(""); toast.success("Campaign created"); }} data-testid="campaign-create-btn">
+        <Button className="gap-1.5" onClick={async () => { if (!name.trim()) return; try { await create.mutateAsync({ name: name.trim() }); setName(""); toast.success("Campaign created"); } catch (e: any) { toast.error(e?.response?.data?.detail ?? "Could not create campaign. Please try again."); } }} data-testid="campaign-create-btn">
           <Plus className="h-4 w-4" /> Create
         </Button>
       </div>
@@ -70,9 +70,13 @@ function SchedulerDialog({ open, onOpenChange, defaultDate }: { open: boolean; o
 
   const submit = async () => {
     if (!title.trim()) return toast.error("Title required");
-    await create.mutateAsync({ title: title.trim(), content, platforms: selected, scheduled_at: date });
-    toast.success("Post scheduled");
-    setTitle(""); setContent(""); setSelected([]); onOpenChange(false);
+    try {
+      await create.mutateAsync({ title: title.trim(), content, platforms: selected, scheduled_at: date });
+      toast.success("Post scheduled");
+      setTitle(""); setContent(""); setSelected([]); onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? "Could not schedule post. Please try again.");
+    }
   };
 
   return (
