@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -31,16 +32,28 @@ export default function CharacterForge() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [role, setRole] = useState("supporting");
+  const [mode, setMode] = useState<"quick" | "ai">("quick");
+  const [aiPrompt, setAiPrompt] = useState("");
 
   if (selected) {
     return <CharacterDetail characterId={selected} onBack={() => setSelected(null)} />;
   }
 
   const submit = async () => {
-    if (!name.trim()) return toast.error("Name is required");
-    const c = await create.mutateAsync({ name: name.trim(), role });
-    setName(""); setOpen(false); setSelected(c.id);
-    toast.success(`${c.name} added to the cast`);
+    if (mode === "ai" && !aiPrompt.trim()) return toast.error("Describe the character");
+    if (mode === "quick" && !name.trim()) return toast.error("Name is required");
+    try {
+      const c = await create.mutateAsync({
+        name: name.trim() || "Untitled",
+        role,
+        ai_prompt: mode === "ai" ? aiPrompt.trim() : "",
+      });
+      setName(""); setAiPrompt(""); setMode("quick"); setOpen(false); setSelected(c.id);
+      toast.success(`${c.name} added to the cast`);
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      toast.error(detail ? `Could not create: ${detail}` : "Could not create character. Please try again.");
+    }
   };
 
   return (
@@ -114,8 +127,21 @@ export default function CharacterForge() {
             <DialogDescription>Start the Character Bible. You can lock appearance and add references next.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <div className="flex gap-1 rounded-lg border border-border bg-secondary/40 p-1">
+              <button onClick={() => setMode("quick")} data-testid="char-mode-quick"
+                className={`flex-1 rounded-md py-1.5 text-sm transition-colors ${mode === "quick" ? "bg-background font-medium" : "text-muted-foreground"}`}>Quick create</button>
+              <button onClick={() => setMode("ai")} data-testid="char-mode-ai"
+                className={`flex-1 rounded-md py-1.5 text-sm transition-colors ${mode === "ai" ? "bg-background font-medium" : "text-muted-foreground"}`}>Create with AI</button>
+            </div>
+            {mode === "ai" && (
+              <div className="space-y-1.5">
+                <Label>Describe the character</Label>
+                <Textarea rows={3} value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="e.g. A weary storm-mage with silver eyes, haunted by a lost city…" data-testid="character-ai-prompt" />
+                <p className="text-[11px] text-muted-foreground">The prompt is saved to the Character Bible. Images are only generated when an image provider is enabled.</p>
+              </div>
+            )}
             <div className="space-y-1.5">
-              <Label>Name</Label>
+              <Label>Name {mode === "ai" && <span className="text-xs text-muted-foreground">(optional)</span>}</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Kael Ardyn" autoFocus data-testid="character-name-input" />
             </div>
             <div className="space-y-1.5">

@@ -61,6 +61,7 @@ class Character(BaseModel):
     name: str
     role: str = "supporting"          # protagonist | antagonist | supporting | minor
     tagline: str = ""
+    ai_prompt: str = ""
     # Appearance lock
     appearance: str = ""
     appearance_locked: bool = False
@@ -89,6 +90,7 @@ class CharacterCreate(BaseModel):
     name: str
     role: str = "supporting"
     tagline: str = ""
+    ai_prompt: str = ""
     appearance: str = ""
     personality: str = ""
 

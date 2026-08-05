@@ -103,7 +103,7 @@ export function CharacterDetail({ characterId, onBack }: { characterId: string; 
 
       <Tabs defaultValue="appearance">
         <TabsList className="mb-6 h-auto flex-wrap justify-start gap-1 bg-secondary/40 p-1">
-          {["appearance", "references", "outfits", "expressions", "voice", "personality", "relationships", "props", "memory", "history"].map((t) => (
+          {["appearance", "consistency", "references", "outfits", "expressions", "voice", "personality", "relationships", "props", "memory", "history"].map((t) => (
             <TabsTrigger key={t} value={t} className="rounded-md px-3 py-1.5 text-sm capitalize data-[state=active]:bg-background" data-testid={`char-tab-${t}`}>
               {t}
             </TabsTrigger>
@@ -132,6 +132,34 @@ export function CharacterDetail({ characterId, onBack }: { characterId: string; 
             <Textarea rows={5} value={draft.appearance} onChange={(e) => set({ appearance: e.target.value })} placeholder="Face, build, hair, distinguishing features, signature look…" data-testid="char-appearance" />
           </Field>
           <PaletteEditor palette={draft.color_palette} onChange={(color_palette) => set({ color_palette })} />
+        </TabsContent>
+
+        {/* CONSISTENCY */}
+        <TabsContent value="consistency" className="space-y-4">
+          <div className="rounded-xl border border-border bg-card/50 p-4">
+            <div className="flex items-center gap-2">
+              {draft.appearance_locked ? <Lock className="h-4 w-4 text-primary" /> : <Unlock className="h-4 w-4 text-muted-foreground" />}
+              <p className="font-medium">Appearance {draft.appearance_locked ? "Locked" : "Unlocked"}</p>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {draft.appearance_locked
+                ? "Every AI generation must match this character's canon appearance and palette."
+                : "Lock appearance (in the Appearance tab) to enforce consistency across generations."}
+            </p>
+            {draft.color_palette.length > 0 && (
+              <div className="mt-3 flex gap-1.5">
+                {draft.color_palette.map((c, i) => <span key={i} className="h-6 w-6 rounded-md border border-border" style={{ background: c }} />)}
+              </div>
+            )}
+          </div>
+          {draft.ai_prompt ? (
+            <div className="rounded-xl border border-border bg-card/50 p-4" data-testid="ai-prompt-block">
+              <p className="mb-1 font-heading text-sm font-bold text-primary">Original AI prompt</p>
+              <p className="whitespace-pre-wrap text-sm text-muted-foreground">{draft.ai_prompt}</p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No AI prompt stored. Characters created via “Create with AI” keep their prompt here.</p>
+          )}
         </TabsContent>
 
         {/* REFERENCES */}

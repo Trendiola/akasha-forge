@@ -15,6 +15,7 @@ from routes import (
     production as production_route,
     publish as publish_route,
     image_edit as image_edit_route,
+    forge_items as forge_items_route,
 )
 
 app = FastAPI(title="Akasha Forge API")
@@ -122,7 +123,7 @@ async def delete_project(project_id: str):
     char_ids = [c["id"] async for c in db.characters.find({"project_id": project_id}, {"_id": 0, "id": 1})]
     if char_ids:
         await db.character_versions.delete_many({"character_id": {"$in": char_ids}})
-    for coll in ("characters", "bibles", "production_nodes", "image_jobs"):
+    for coll in ("characters", "bibles", "production_nodes", "image_jobs", "forge_items"):
         await db[coll].delete_many({"project_id": project_id})
     return {"ok": True}
 
@@ -159,6 +160,7 @@ app.include_router(brain_route.router)
 app.include_router(production_route.router)
 app.include_router(publish_route.router)
 app.include_router(image_edit_route.router)
+app.include_router(forge_items_route.router)
 
 app.add_middleware(
     CORSMiddleware,

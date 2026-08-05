@@ -25,6 +25,7 @@ export interface Character {
   version: number;
   created_at: string;
   updated_at: string;
+  ai_prompt?: string;
 }
 
 export function useCharacters(projectId?: string) {

@@ -1,0 +1,30 @@
+{
+  "summary": "Comprehensive testing of the shared Forge CRUD framework (backend + frontend). Backend: 21 pytest cases covering create/list/get/update/delete across all module/kind combos (story chapter|draft|beat, world location|faction|rule|timeline, video scene|shot|render, voice profile, music brief, image gallery|asset, workflow graph), edge cases (404s, empty PUT -> 400, kind filter), project-delete cascade of forge_items, and Character ai_prompt field. All 21 pass (100%). Frontend (Playwright against public REACT_APP_BACKEND_URL): created a project, exercised full Story-Forge Chapters flow (empty-title toast validation, create, immediate render, F5 persistence, edit reopen shows saved values, edit persists, delete removes), created a World-Forge location, verified provider-required banners appear on Image/Video/Voice/Music forges (as intended — providers not enabled by default), created a Workflow, created a Character via 'Create with AI' mode and confirmed the Consistency tab renders the stored original AI prompt. No React error overlay observed at any point. Cleaned up TEST_ projects via DELETE /api/projects/{id} (cascades forge_items).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_forge_items.py",
+    "/app/test_reports/pytest/forge_items.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "forge_items.py update_item requires at least one field or 400s — acceptable, but consider treating an all-null PUT as a no-op returning the current doc for idempotency.",
+    "ForgeWorkspace edit/delete buttons only appear on group-hover (opacity-0 group-hover:opacity-100); this is not keyboard-accessible. Consider always visible or focus-visible variant for a11y.",
+    "ItemFormModal onSubmit swallows non-axios errors (only inspects err.response.data.detail). If mutation throws a plain Error, users get a generic 'Could not save' toast — acceptable but underlying error is lost from telemetry.",
+    "Only 3 providers seeded enabled; image/video/voice/music banners are working as intended per test spec — no action required."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_forge_items.py (new)"
+  ],
+  "success_rate": { "backend": "100% (21/21)", "frontend": "100% (all critical flows pass)" },
+  "test_credentials": "None (no auth)",
+  "seed_data_creation": "Created TEST_forge_pytest (via pytest, auto-cleaned), TEST_cascade (auto-deleted in test), TEST_forge_e2e and TEST_forge_e2e2 (via Playwright, cleaned up via API at end).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Route paths in the app are /story, /world, /image, /video, /voice, /music, /workflow, /character (NOT /story-forge etc). Data-testids used: forge-new-{kind}, forge-item-modal, field-{name}, forge-item-submit, forge-item-{id}, forge-edit-{id}, forge-delete-{id}, {moduleId}-tab-{tabId} (e.g. story-forge-tab-chapters), provider-required-{image|video|voice|music}, character-new-btn, char-mode-quick, char-mode-ai, character-ai-prompt, character-name-input, character-submit-btn, char-tab-consistency, ai-prompt-block, workflow-name-input, workflow-create-btn. World timeline uses kind='timeline_event' (not 'timeline'). Backend Character POST is /api/projects/{pid}/characters (project_id in URL, not body).",
+  "rca of the issue": "N/A — no bugs found."
+}
