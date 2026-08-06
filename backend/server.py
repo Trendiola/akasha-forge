@@ -16,6 +16,7 @@ from routes import (
     publish as publish_route,
     image_edit as image_edit_route,
     forge_items as forge_items_route,
+    video_jobs as video_jobs_route,
 )
 
 app = FastAPI(title="Akasha Forge API")
@@ -161,6 +162,7 @@ app.include_router(production_route.router)
 app.include_router(publish_route.router)
 app.include_router(image_edit_route.router)
 app.include_router(forge_items_route.router)
+app.include_router(video_jobs_route.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -178,6 +180,7 @@ async def on_startup():
     await db.projects.create_index("id", unique=True)
     await providers_hub.seed_providers()
     await brain_route.ensure_knowledge_indexes()
+    await video_jobs_route.ensure_video_indexes()
     if await db.settings.count_documents({"id": "global"}) == 0:
         await db.settings.insert_one(dict(DEFAULT_SETTINGS))
     try:

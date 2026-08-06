@@ -98,6 +98,14 @@ Scope: backend only. Auto-syncs 4 modules into the AF-005B `knowledge_items` sto
 - Project delete now also purges `knowledge_items`.
 - Verified: `backend/tests/test_brain_ingestion.py` — 7 tests pass (acceptance 1–16). Regression: 25/25 across knowledge + provider + publish suites.
 
+## AF-VIDEO-001 — One-Prompt Video Creator Foundation (backend only) (2026-06-06) ✅
+Scope: backend only. Planning engine + provider-neutral render pipeline foundation. No desktop packaging, no FFmpeg, no provider APIs, no real video/voice/music generation.
+- New `POST /api/video-projects/plan` — Akasha Brain returns a compact creative skeleton (3–8 scenes), then shots are **deterministically expanded to exactly `ceil(target/clip)` clips** with continuity inheritance (characters/world/style/camera/lighting). Persists Acts→Scenes→Shots into the **existing** `production_nodes` hierarchy (rich shot fields under node `meta`); auto-ingested to the AF-005C knowledge store. Returns clear warning (never crashes) when no LLM configured. Scales 30s→10min with no arch change.
+- New `video_render_jobs` collection (all spec fields) + indexes: unique `id`, `project_id+status`, `project_id+shot_id`, `provider_job_id`.
+- New render job API: `POST/GET/GET{id}/PUT/DELETE /api/video-jobs`, `/{id}/queue`, `/{id}/cancel`, `POST /video-jobs/from-plan` (one job per shot, upsert by project_id+shot_id → no duplicates). Provider resolved from Provider Hub (enabled default → highest priority); missing provider → Draft job + warning. Delete protected for `submitting`/`processing`.
+- New `backend/video_adapters.py` — provider-neutral `VideoProviderAdapter` interface (validate_configuration/submit/get_status/download_result/cancel) + registry. NO concrete providers (Veo/Kling/Runway/Fal/Replicate) implemented — config always from Provider Hub.
+- Verified: `backend/tests/test_video_foundation.py` — 5 tests pass (plan gen, clip-count scaling, from-plan dedup, provider resolution + draft, queue/cancel/update/delete-protection). Full regression: 76/76 across all existing suites — no regressions.
+
 ## Framework Completion Sprint (2026-06)
 Built ONE reusable Forge CRUD framework and applied it consistently (no per-module CRUD duplication):
 - **Backend**: generic `forge_items` collection + `routes/forge_items.py` (list/create/get/update/delete by project+module+kind). Cascade-deletes with project. Added `ai_prompt` to Character.
