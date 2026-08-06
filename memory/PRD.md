@@ -115,6 +115,15 @@ Scope: remove browser/deploy assumptions blocking a future Tauri shell. No packa
 - **Desktop detection** — `window.__AKASHA_RUNTIME_CONFIG__` `{desktop, backendUrl, appDataDir}` read via `getRuntimeConfig()`/`isDesktop()`; no Tauri deps, no secrets.
 - Verified: backend regression 56/56; TS check clean; web preview loads (14 providers), routes navigate + deep-route refresh not blank; runtime override redirected calls to injected URL with friendly error toast.
 
+## AF-DESKTOP-003 — Local File Storage Backend (2026-06-06) ✅
+Scope: provider-neutral storage layer (remote default = Emergent, local = Windows-safe filesystem), preserving the object-storage interface. No Tauri/PyInstaller/DB/Forge changes.
+- `core.py` storage rewritten into a backend-neutral API (interface preserved): `put_object`, `get_object`, `get_object_stream` (new, streaming), `delete_object`, `object_exists`, `get_object_metadata`, `resolve_object_path`, `init_storage`. `STORAGE_BACKEND=remote|local` (default remote → preview unchanged).
+- Local backend: root `AKASHA_DATA_DIR` (default `./akasha-data`), layout `storage/akasha-forge/{images,videos,audio,music,documents,thumbnails,exports}` + `projects/ cache/ logs/`. MIME/category→canonical folder mapping, UUID filenames, extension/MIME preserved, atomic writes (`os.replace`), pathlib, sanitized segments, path-traversal rejected (`_resolve_within`).
+- `routes/files.py`: streaming serve (`StreamingResponse`), extended MIME map (video/audio/docs), new `DELETE /api/files/{id}` (safe, marks record + removes object; NOT auto-called by gallery/asset deletion), richer metadata on the existing `files` collection (storage_backend, relative_path, mime_type, size_bytes, project_id, checksum) — no duplicate metadata system.
+- Env vars added: `STORAGE_BACKEND`, `AKASHA_DATA_DIR`. Future Tauri shell sets `AKASHA_DATA_DIR` before launching the backend (via the AF-DESKTOP-002 `__main__` runner).
+- Verified: `backend/tests/test_local_storage.py` — 8 tests (local dirs, image/video/audio/music put, unique ids, streaming+metadata, missing/traversal, delete target-only, Windows-style path, remote-mode API roundtrip). Full local-mode API proven end-to-end via standalone local server (upload→disk→stream→delete). Regression 45/45; TS clean; web preview functional.
+- Migration limitation: existing remote-only files are not migrated; in local mode old remote records return a clear 404 "unavailable in current storage mode" (no crash, no corruption).
+
 ## Framework Completion Sprint (2026-06)
 Built ONE reusable Forge CRUD framework and applied it consistently (no per-module CRUD duplication):
 - **Backend**: generic `forge_items` collection + `routes/forge_items.py` (list/create/get/update/delete by project+module+kind). Cascade-deletes with project. Added `ai_prompt` to Character.
