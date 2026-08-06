@@ -56,6 +56,16 @@ Backend split into `core.py` + `routes/` package (clean architecture). New:
 
 Frontend: extended existing design system, new nav item (Akasha Brain), ModuleShell enhanced with per-tab `content`. No modules rebuilt/redesigned.
 
+## Image Forge P2 — Canvas & Gallery flow (2026-06-06) ✅
+Scope: Image Forge only. No backend changes — persistence reuses generic `forge_items` (module=`image`).
+- **Active Canvas persistence**: active canvas image stored per project as a `forge_items` doc (kind=`canvas_state`, `data.asset_id`). Restores on tab switch and after F5. Reference cleared safely if the asset was deleted.
+- **Open on Canvas**: every Assets-grid card (with an image) has a Canvas button → sets active canvas asset + switches to Canvas tab.
+- **Add to Gallery**: available on each asset card and on the active canvas image. Membership stored in the gallery doc's `data.asset_ids` (no duplicate asset file/record; duplicate membership blocked). Galleries tab now shows member thumbnails + live count.
+- Shared `ForgeWorkspace` gained optional controlled-tab props (`activeTab`/`onTabChange`) — backward compatible.
+- Also fixed a compile-blocking bug: missing `useEffect` import in `features/publish/PublishPro.tsx`.
+- Verified: testing agent 100% (backend 4/4 new pytest, all 7 frontend acceptance criteria incl. F5 persistence + duplicate prevention). Report: `/app/test_reports/iteration_6.json`.
+- Known limitations (local-first single-user acceptable): duplicate-membership guard is client-side; `canvas_state` has no server-side singleton index (client picks first).
+
 ## Framework Completion Sprint (2026-06)
 Built ONE reusable Forge CRUD framework and applied it consistently (no per-module CRUD duplication):
 - **Backend**: generic `forge_items` collection + `routes/forge_items.py` (list/create/get/update/delete by project+module+kind). Cascade-deletes with project. Added `ai_prompt` to Character.
