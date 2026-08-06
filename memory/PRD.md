@@ -66,6 +66,12 @@ Scope: Image Forge only. No backend changes — persistence reuses generic `forg
 - Verified: testing agent 100% (backend 4/4 new pytest, all 7 frontend acceptance criteria incl. F5 persistence + duplicate prevention). Report: `/app/test_reports/iteration_6.json`.
 - Known limitations (local-first single-user acceptable): duplicate-membership guard is client-side; `canvas_state` has no server-side singleton index (client picks first).
 
+## AF-003 — Publish Forge editing fix (2026-06-06) ✅
+Scope: Publish Forge only. No backend changes.
+- Fixed dead header **"+ New"** button — `ModuleShell` gained an optional `onNew` prop (backward compatible; unused by other modules), wired in Publish Forge to open the post creation dialog.
+- Enabled **editing existing Release posts**: clicking a Release row opens the scheduler dialog pre-filled (title/content/platforms/schedule), label reads "Save changes", persists via `PUT /api/publish/posts/{id}` (partial `$set` preserves status/campaign_id), survives F5. Delete uses `stopPropagation`.
+- Verified: testing agent 100% (backend 4/4 pytest, all 4 acceptance flows incl. F5 persistence). Report: `/app/test_reports/iteration_7.json`.
+
 ## Framework Completion Sprint (2026-06)
 Built ONE reusable Forge CRUD framework and applied it consistently (no per-module CRUD duplication):
 - **Backend**: generic `forge_items` collection + `routes/forge_items.py` (list/create/get/update/delete by project+module+kind). Cascade-deletes with project. Added `ai_prompt` to Character.
