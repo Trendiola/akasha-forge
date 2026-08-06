@@ -88,7 +88,7 @@ export function CampaignManager() {
   );
 }
 
-function SchedulerDialog({ open, onOpenChange, defaultDate, editing }: { open: boolean; onOpenChange: (v: boolean) => void; defaultDate?: string; editing?: any | null }) {
+export function SchedulerDialog({ open, onOpenChange, defaultDate, editing }: { open: boolean; onOpenChange: (v: boolean) => void; defaultDate?: string; editing?: any | null }) {
   const { data: platforms = [] } = usePlatforms();
   const create = useCreatePost();
   const update = useUpdatePost();
@@ -149,7 +149,7 @@ function SchedulerDialog({ open, onOpenChange, defaultDate, editing }: { open: b
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={create.isPending} data-testid="post-schedule-btn">Schedule</Button>
+          <Button onClick={submit} disabled={create.isPending || update.isPending} data-testid="post-schedule-btn">{editing ? "Save changes" : "Schedule"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -160,30 +160,34 @@ export function PublishingQueue() {
   const { data: posts = [] } = usePosts();
   const del = useDeletePost();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
+
+  const openNew = () => { setEditing(null); setOpen(true); };
+  const openEdit = (p: any) => { setEditing(p); setOpen(true); };
 
   return (
     <div className="space-y-4" data-testid="publishing-queue">
       <div className="flex justify-end">
-        <Button className="gap-1.5" onClick={() => setOpen(true)} data-testid="queue-new-post"><Plus className="h-4 w-4" /> New post</Button>
+        <Button className="gap-1.5" onClick={openNew} data-testid="queue-new-post"><Plus className="h-4 w-4" /> New post</Button>
       </div>
       {posts.length === 0 ? (
         <EmptyState icon={ListChecks} title="Queue is empty" description="Schedule posts to see them lined up here." />
       ) : (
         <div className="space-y-2">
           {posts.map((p: any) => (
-            <div key={p.id} className="flex items-center gap-3 rounded-xl border border-border bg-card/50 px-4 py-3" data-testid="queue-post-row">
+            <div key={p.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-card/50 px-4 py-3 transition-colors hover:border-primary/40" data-testid={`queue-post-row-${p.id}`} onClick={() => openEdit(p)}>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{p.title}</p>
                 <p className="text-xs text-muted-foreground">{p.scheduled_at || "Unscheduled"}</p>
               </div>
               <div className="flex gap-1">{p.platforms?.map((pl: string) => <PlatformIcon key={pl} p={pl} />)}</div>
               <Badge variant="outline" className="text-[10px] capitalize">{p.status}</Badge>
-              <button onClick={() => del.mutate(p.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+              <button onClick={(e) => { e.stopPropagation(); del.mutate(p.id); toast.success("Post deleted"); }} className="text-muted-foreground hover:text-destructive" data-testid={`queue-post-delete-${p.id}`}><Trash2 className="h-4 w-4" /></button>
             </div>
           ))}
         </div>
       )}
-      <SchedulerDialog open={open} onOpenChange={setOpen} />
+      <SchedulerDialog open={open} onOpenChange={setOpen} editing={editing} />
     </div>
   );
 }

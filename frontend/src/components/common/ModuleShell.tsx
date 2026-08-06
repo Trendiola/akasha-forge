@@ -14,9 +14,10 @@ interface ModuleShellProps {
   module: ModuleDef;
   content?: Record<string, React.ReactNode>;
   requireProject?: boolean;
+  onNew?: () => void;
 }
 
-export function ModuleShell({ module, content, requireProject = true }: ModuleShellProps) {
+export function ModuleShell({ module, content, requireProject = true, onNew }: ModuleShellProps) {
   const { activeProjectId } = useApp();
   const { data: projects = [] } = useProjects();
   const activeProject = projects.find((p) => p.id === activeProjectId);
@@ -32,6 +33,7 @@ export function ModuleShell({ module, content, requireProject = true }: ModuleSh
         actions={
           <Button
             data-testid={`${module.id}-new-btn`}
+            onClick={onNew}
             className="gap-2 font-heading font-semibold"
             style={{ background: module.accent }}
           >
