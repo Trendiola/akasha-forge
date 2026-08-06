@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, Calendar as CalIcon, Youtube, Facebook, Instagram, Linkedin, Twitter, Music2, Megaphone, ListChecks } from "lucide-react";
-import { usePlatforms, useCampaigns, useCreateCampaign, useDeleteCampaign, usePosts, useCreatePost, useDeletePost } from "@/features/publish/hooks";
+import { usePlatforms, useCampaigns, useCreateCampaign, useUpdateCampaign, useDeleteCampaign, usePosts, useCreatePost, useUpdatePost, useDeletePost } from "@/features/publish/hooks";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,8 +25,23 @@ function PlatformIcon({ p }: { p: string }) {
 export function CampaignManager() {
   const { data: campaigns = [] } = useCampaigns();
   const create = useCreateCampaign();
+  const update = useUpdateCampaign();
   const del = useDeleteCampaign();
   const [name, setName] = useState("");
+  const [editing, setEditing] = useState<any | null>(null);
+  const [editName, setEditName] = useState("");
+
+  const openEdit = (c: any) => { setEditing(c); setEditName(c.name); };
+  const saveEdit = async () => {
+    if (!editName.trim()) return toast.error("Name required");
+    try {
+      await update.mutateAsync({ id: editing.id, name: editName.trim(), goal: editing.goal, color: editing.color });
+      toast.success("Campaign saved");
+      setEditing(null);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail ?? "Could not save campaign. Please try again.");
+    }
+  };
 
   return (
     <div className="space-y-4" data-testid="campaign-manager">
@@ -41,11 +56,10 @@ export function CampaignManager() {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {campaigns.map((c: any) => (
-            <div key={c.id} className="rounded-xl border border-border bg-card/50 p-4" data-testid="campaign-card">
-              <div className="absolute h-1" />
+            <div key={c.id} className="cursor-pointer rounded-xl border border-border bg-card/50 p-4 transition-colors hover:border-primary/40" data-testid={`campaign-card-${c.id}`} onClick={() => openEdit(c)}>
               <div className="flex items-center justify-between">
                 <span className="h-3 w-3 rounded" style={{ background: c.color }} />
-                <button onClick={() => { del.mutate(c.id); }} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+                <button onClick={(e) => { e.stopPropagation(); del.mutate(c.id); toast.success("Campaign deleted"); }} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
               </div>
               <p className="mt-3 font-heading font-semibold">{c.name}</p>
               <Badge variant="outline" className="mt-2 text-[10px] capitalize">{c.status}</Badge>
@@ -53,29 +67,60 @@ export function CampaignManager() {
           ))}
         </div>
       )}
+
+      <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
+        <DialogContent className="glass-strong sm:max-w-md" data-testid="campaign-edit-dialog">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Edit campaign</DialogTitle>
+            <DialogDescription>Rename your campaign. Changes persist immediately.</DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-1.5">
+            <Label>Name</Label>
+            <Input value={editName} onChange={(e) => setEditName(e.target.value)} data-testid="campaign-edit-input" autoFocus />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={update.isPending} data-testid="campaign-edit-save">Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function SchedulerDialog({ open, onOpenChange, defaultDate }: { open: boolean; onOpenChange: (v: boolean) => void; defaultDate?: string }) {
+function SchedulerDialog({ open, onOpenChange, defaultDate, editing }: { open: boolean; onOpenChange: (v: boolean) => void; defaultDate?: string; editing?: any | null }) {
   const { data: platforms = [] } = usePlatforms();
-  const { data: campaigns = [] } = useCampaigns();
   const create = useCreatePost();
+  const update = useUpdatePost();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [date, setDate] = useState(defaultDate ?? "");
+
+  useEffect(() => {
+    if (open) {
+      setTitle(editing?.title ?? "");
+      setContent(editing?.content ?? "");
+      setSelected(editing?.platforms ?? []);
+      setDate(editing?.scheduled_at ?? defaultDate ?? "");
+    }
+  }, [open, editing, defaultDate]);
 
   const toggle = (p: string) => setSelected((s) => (s.includes(p) ? s.filter((x) => x !== p) : [...s, p]));
 
   const submit = async () => {
     if (!title.trim()) return toast.error("Title required");
     try {
-      await create.mutateAsync({ title: title.trim(), content, platforms: selected, scheduled_at: date });
-      toast.success("Post scheduled");
+      if (editing) {
+        await update.mutateAsync({ id: editing.id, title: title.trim(), content, platforms: selected, scheduled_at: date });
+        toast.success("Post saved");
+      } else {
+        await create.mutateAsync({ title: title.trim(), content, platforms: selected, scheduled_at: date });
+        toast.success("Post scheduled");
+      }
       setTitle(""); setContent(""); setSelected([]); onOpenChange(false);
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail ?? "Could not schedule post. Please try again.");
+      toast.error(err?.response?.data?.detail ?? "Could not save post. Please try again.");
     }
   };
 
@@ -83,7 +128,7 @@ function SchedulerDialog({ open, onOpenChange, defaultDate }: { open: boolean; o
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="glass-strong sm:max-w-lg" data-testid="scheduler-dialog">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Schedule a post</DialogTitle>
+          <DialogTitle className="font-display text-xl">{editing ? "Edit post" : "Schedule a post"}</DialogTitle>
           <DialogDescription>Compose once, publish across channels. Connect accounts later.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">

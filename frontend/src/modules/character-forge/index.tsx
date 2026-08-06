@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { fileUrl } from "@/lib/api";
 import { useActiveProject } from "@/features/projects/useActiveProject";
-import { useCharacters, useCreateCharacter, useDeleteCharacter } from "@/features/characters/hooks";
+import { useCharacters, useCreateCharacter, useCreateCharacterAI, useDeleteCharacter } from "@/features/characters/hooks";
 import { CharacterDetail } from "@/features/characters/CharacterDetail";
 
 const ROLES = ["protagonist", "antagonist", "supporting", "minor"];
@@ -27,6 +27,7 @@ export default function CharacterForge() {
   const project = useActiveProject();
   const { data: characters = [] } = useCharacters(project?.id);
   const create = useCreateCharacter(project?.id ?? "");
+  const createAI = useCreateCharacterAI(project?.id ?? "");
   const del = useDeleteCharacter(project?.id ?? "");
   const [selected, setSelected] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -43,16 +44,18 @@ export default function CharacterForge() {
     if (mode === "ai" && !aiPrompt.trim()) return toast.error("Describe the character");
     if (mode === "quick" && !name.trim()) return toast.error("Name is required");
     try {
-      const c = await create.mutateAsync({
-        name: name.trim() || "Untitled",
-        role,
-        ai_prompt: mode === "ai" ? aiPrompt.trim() : "",
-      });
+      let c;
+      if (mode === "ai") {
+        toast.info("Akasha Brain is building the character…");
+        c = await createAI.mutateAsync({ prompt: aiPrompt.trim(), role });
+      } else {
+        c = await create.mutateAsync({ name: name.trim(), role });
+      }
       setName(""); setAiPrompt(""); setMode("quick"); setOpen(false); setSelected(c.id);
       toast.success(`${c.name} added to the cast`);
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
-      toast.error(detail ? `Could not create: ${detail}` : "Could not create character. Please try again.");
+      toast.error(detail ?? "Could not create character. Please try again.");
     }
   };
 
@@ -154,8 +157,8 @@ export default function CharacterForge() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={submit} disabled={create.isPending} data-testid="character-submit-btn" style={{ background: mod.accent }}>
-              {create.isPending ? "Creating…" : "Create"}
+            <Button onClick={submit} disabled={create.isPending || createAI.isPending} data-testid="character-submit-btn" style={{ background: mod.accent }}>
+              {create.isPending || createAI.isPending ? "Creating…" : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>

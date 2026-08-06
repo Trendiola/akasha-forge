@@ -1,5 +1,6 @@
 """Character Consistency Engine — the flagship Character Bible."""
 from typing import List, Optional, Dict, Any
+import json
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -162,6 +163,85 @@ async def delete_character(character_id: str):
         raise HTTPException(status_code=404, detail="Character not found")
     await db.character_versions.delete_many({"character_id": character_id})
     return {"ok": True}
+
+
+class AICharacterCreate(BaseModel):
+    prompt: str
+    role: Optional[str] = None
+
+
+AI_SYSTEM = (
+    "You are Akasha Brain, a character designer. Convert the user's prompt into a "
+    "structured Character Bible. Return ONLY strict minified JSON (no markdown, no prose) "
+    "with EXACTLY these keys: name (string), role (one of protagonist|antagonist|supporting|minor), "
+    "tagline (string), appearance (string, vivid physical canon), personality (string), "
+    "voice_suggestion (string), color_palette (array of 3-5 hex color strings), "
+    "outfits (array of {name, description}), expressions (array of {name, description}), "
+    "props (array of {name, description}), relationships (array of {name, type, description}), "
+    "memory (array of {text}). Populate every field meaningfully based on the prompt. "
+    "Keep each string under 200 characters and at most 3 items per array. Output compact JSON only."
+)
+
+
+def _parse_ai_json(raw: str) -> dict:
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.lstrip().lower().startswith("json"):
+            text = text.lstrip()[4:]
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end == -1:
+        raise ValueError("No JSON object found")
+    return json.loads(text[start:end + 1])
+
+
+@router.post("/projects/{project_id}/characters/ai", response_model=Character)
+async def create_character_ai(project_id: str, body: AICharacterCreate):
+    if not body.prompt.strip():
+        raise HTTPException(status_code=422, detail="Please describe the character.")
+    from routes.brain import _llm
+    try:
+        raw = await _llm(AI_SYSTEM, body.prompt.strip(), max_tokens=3500)
+        parsed = _parse_ai_json(raw)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("AI character parse failed for project %s", project_id)
+        raise HTTPException(status_code=422, detail="Akasha Brain couldn't turn that prompt into a character. Please rephrase and try again.")
+
+    def _list(key, fields):
+        out = []
+        for it in (parsed.get(key) or []):
+            if isinstance(it, dict):
+                out.append({f: str(it.get(f, "")) for f in fields})
+        return out
+
+    try:
+        character = Character(
+            project_id=project_id,
+            name=str(parsed.get("name") or "Unnamed").strip(),
+            role=(body.role or parsed.get("role") or "supporting"),
+            tagline=str(parsed.get("tagline") or ""),
+            appearance=str(parsed.get("appearance") or ""),
+            appearance_locked=True,
+            color_palette=[str(c) for c in (parsed.get("color_palette") or []) if isinstance(c, str)][:5],
+            personality=str(parsed.get("personality") or ""),
+            voice={"description": str(parsed.get("voice_suggestion") or "")},
+            outfits=_list("outfits", ["name", "description"]),
+            expressions=_list("expressions", ["name", "description"]),
+            props=_list("props", ["name", "description"]),
+            relationships=_list("relationships", ["name", "type", "description"]),
+            memory=[{"text": str(m.get("text", ""))} for m in (parsed.get("memory") or []) if isinstance(m, dict)],
+            ai_prompt=body.prompt.strip(),
+        )
+    except Exception:
+        logger.exception("AI character build failed for project %s", project_id)
+        raise HTTPException(status_code=422, detail="Akasha Brain returned an unexpected format. Please try again.")
+
+    await db.characters.insert_one(character.model_dump())
+    logger.info("Created AI character %s in project %s", character.id, project_id)
+    return character
+
 
 
 # ------- Version history -------

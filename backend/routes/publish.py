@@ -83,6 +83,14 @@ async def create_campaign(body: CampaignCreate):
         raise HTTPException(status_code=500, detail="Could not create campaign")
 
 
+@router.put("/publish/campaigns/{campaign_id}", response_model=Campaign)
+async def update_campaign(campaign_id: str, body: CampaignCreate):
+    res = await db.campaigns.update_one({"id": campaign_id}, {"$set": body.model_dump()})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    return await db.campaigns.find_one({"id": campaign_id}, {"_id": 0})
+
+
 @router.delete("/publish/campaigns/{campaign_id}")
 async def delete_campaign(campaign_id: str):
     await db.campaigns.delete_one({"id": campaign_id})

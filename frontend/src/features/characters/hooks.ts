@@ -54,6 +54,15 @@ export function useCreateCharacter(projectId: string) {
   });
 }
 
+export function useCreateCharacterAI(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { prompt: string; role?: string }): Promise<Character> =>
+      (await api.post(`/projects/${projectId}/characters/ai`, payload)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["characters", projectId] }),
+  });
+}
+
 export function useUpdateCharacter() {
   const qc = useQueryClient();
   return useMutation({

@@ -17,6 +17,15 @@ export function useCreateCampaign() {
   });
 }
 
+export function useUpdateCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...patch }: { id: string; name: string; goal?: string; color?: string }) =>
+      (await api.put(`/publish/campaigns/${id}`, patch)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns"] }),
+  });
+}
+
 export function useDeleteCampaign() {
   const qc = useQueryClient();
   return useMutation({
@@ -33,6 +42,15 @@ export function useCreatePost() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (p: Record<string, any>) => (await api.post("/publish/posts", p)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["posts"] }),
+  });
+}
+
+export function useUpdatePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...patch }: Record<string, any> & { id: string }) =>
+      (await api.put(`/publish/posts/${id}`, patch)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["posts"] }),
   });
 }
