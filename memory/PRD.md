@@ -89,6 +89,15 @@ Scope: backend only, no frontend. Extended the existing `/api/brain` router (exi
 - Endpoints: `POST /api/brain/knowledge` (create), `GET /api/brain/knowledge` (project-scoped list + filters), `GET /api/brain/knowledge/{id}`, `PUT` (partial, preserves id/project_id/created_at), `DELETE`, `POST /api/brain/knowledge/ingest` (upsert by project_id+entity_type+entity_id+source_module — no dupes), `GET /api/brain/search` (project-scoped `$text` search, relevance score, sort by score then updated_at).
 - Verified: `backend/tests/test_brain_knowledge.py` — 8 tests, all pass (covers acceptance 1–16 incl. project isolation, filters, ingest upsert, empty/invalid handling, existing-endpoint smoke).
 
+## AF-005C — Automatic Knowledge Ingestion (backend only) (2026-06-06) ✅
+Scope: backend only. Auto-syncs 4 modules into the AF-005B `knowledge_items` store; no frontend, no graph/embeddings/RAG.
+- New `routes/knowledge_sync.py` — best-effort (never breaks the source save) upsert/delete + mappers for bibles, characters, production nodes, forge_items, plus `backfill_project`.
+- Hooks wired: bibles (`update_bible` sync + new `DELETE /projects/{pid}/bibles/{type}`), characters (create/AI-create/update/restore sync, delete removes), production (create/update sync, cascade delete removes), forge_items (create/update sync, delete removes). Forge eligibility skips `canvas_state`/empty; entity_type derives from kind|module; source_module=`forge_items:<module>`.
+- Ingestion identity reuses project_id+entity_type+entity_id+source_module (no duplicates on repeated saves).
+- New endpoint: `POST /api/brain/knowledge/backfill` `{project_id}` → returns per-source + totals `{created,updated,skipped,failed}`.
+- Project delete now also purges `knowledge_items`.
+- Verified: `backend/tests/test_brain_ingestion.py` — 7 tests pass (acceptance 1–16). Regression: 25/25 across knowledge + provider + publish suites.
+
 ## Framework Completion Sprint (2026-06)
 Built ONE reusable Forge CRUD framework and applied it consistently (no per-module CRUD duplication):
 - **Backend**: generic `forge_items` collection + `routes/forge_items.py` (list/create/get/update/delete by project+module+kind). Cascade-deletes with project. Added `ai_prompt` to Character.

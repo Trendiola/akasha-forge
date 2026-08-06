@@ -123,7 +123,7 @@ async def delete_project(project_id: str):
     char_ids = [c["id"] async for c in db.characters.find({"project_id": project_id}, {"_id": 0, "id": 1})]
     if char_ids:
         await db.character_versions.delete_many({"character_id": {"$in": char_ids}})
-    for coll in ("characters", "bibles", "production_nodes", "image_jobs", "forge_items"):
+    for coll in ("characters", "bibles", "production_nodes", "image_jobs", "forge_items", "knowledge_items"):
         await db[coll].delete_many({"project_id": project_id})
     return {"ok": True}
 

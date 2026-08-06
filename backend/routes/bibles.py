@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
 
 from core import db, new_id, now_iso
+from routes import knowledge_sync
 
 router = APIRouter(prefix="/api", tags=["bibles"])
 
@@ -85,4 +86,16 @@ async def update_bible(project_id: str, bible_type: str, body: BibleUpdate):
         {"$set": bible.model_dump()},
         upsert=True,
     )
+    await knowledge_sync.sync_bible(bible.model_dump())
     return bible
+
+
+@router.delete("/projects/{project_id}/bibles/{bible_type}")
+async def delete_bible(project_id: str, bible_type: str):
+    if bible_type not in _VALID:
+        raise HTTPException(status_code=400, detail="Unknown bible type")
+    doc = await db.bibles.find_one({"project_id": project_id, "type": bible_type}, {"_id": 0})
+    res = await db.bibles.delete_one({"project_id": project_id, "type": bible_type})
+    if doc:
+        await knowledge_sync.remove_bible(project_id, doc["id"])
+    return {"ok": True, "deleted": res.deleted_count}

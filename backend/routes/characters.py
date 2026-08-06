@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
 
 from core import db, new_id, now_iso, logger
+from routes import knowledge_sync
 
 router = APIRouter(prefix="/api", tags=["characters"])
 
@@ -129,6 +130,7 @@ async def create_character(project_id: str, body: CharacterCreate):
     try:
         character = Character(project_id=project_id, **body.model_dump())
         await db.characters.insert_one(character.model_dump())
+        await knowledge_sync.sync_character(character.model_dump())
         logger.info("Created character %s in project %s", character.id, project_id)
         return character
     except Exception:
@@ -153,15 +155,20 @@ async def update_character(character_id: str, body: CharacterUpdate):
     updates["updated_at"] = now_iso()
     updates["version"] = existing.get("version", 1) + 1
     await db.characters.update_one({"id": character_id}, {"$set": updates})
-    return await db.characters.find_one({"id": character_id}, {"_id": 0})
+    doc = await db.characters.find_one({"id": character_id}, {"_id": 0})
+    await knowledge_sync.sync_character(doc)
+    return doc
 
 
 @router.delete("/characters/{character_id}")
 async def delete_character(character_id: str):
+    existing = await db.characters.find_one({"id": character_id}, {"_id": 0})
     res = await db.characters.delete_one({"id": character_id})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Character not found")
     await db.character_versions.delete_many({"character_id": character_id})
+    if existing:
+        await knowledge_sync.remove_character(existing["project_id"], character_id)
     return {"ok": True}
 
 
@@ -239,6 +246,7 @@ async def create_character_ai(project_id: str, body: AICharacterCreate):
         raise HTTPException(status_code=422, detail="Akasha Brain returned an unexpected format. Please try again.")
 
     await db.characters.insert_one(character.model_dump())
+    await knowledge_sync.sync_character(character.model_dump())
     logger.info("Created AI character %s in project %s", character.id, project_id)
     return character
 
@@ -279,4 +287,6 @@ async def restore_version(character_id: str, version_id: str):
     restored["updated_at"] = now_iso()
     restored.pop("_id", None)
     await db.characters.update_one({"id": character_id}, {"$set": restored})
-    return await db.characters.find_one({"id": character_id}, {"_id": 0})
+    doc = await db.characters.find_one({"id": character_id}, {"_id": 0})
+    await knowledge_sync.sync_character(doc)
+    return doc

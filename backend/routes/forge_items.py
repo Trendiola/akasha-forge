@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
 
 from core import db, new_id, now_iso, logger
+from routes import knowledge_sync
 
 router = APIRouter(prefix="/api", tags=["forge"])
 
@@ -53,6 +54,7 @@ async def create_item(project_id: str, module: str, body: ForgeItemCreate):
         count = await db.forge_items.count_documents({"project_id": project_id, "module": module, "kind": body.kind})
         item = ForgeItem(project_id=project_id, module=module, kind=body.kind, title=body.title or "Untitled", data=body.data, order=count)
         await db.forge_items.insert_one(item.model_dump())
+        await knowledge_sync.sync_forge_item(item.model_dump())
         logger.info("Created forge item %s (%s/%s) in project %s", item.id, module, body.kind, project_id)
         return item
     except Exception:
@@ -77,12 +79,17 @@ async def update_item(item_id: str, body: ForgeItemUpdate):
     res = await db.forge_items.update_one({"id": item_id}, {"$set": updates})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Item not found")
-    return await db.forge_items.find_one({"id": item_id}, {"_id": 0})
+    doc = await db.forge_items.find_one({"id": item_id}, {"_id": 0})
+    await knowledge_sync.sync_forge_item(doc)
+    return doc
 
 
 @router.delete("/forge-items/{item_id}")
 async def delete_item(item_id: str):
+    existing = await db.forge_items.find_one({"id": item_id}, {"_id": 0})
     res = await db.forge_items.delete_one({"id": item_id})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Item not found")
+    if existing:
+        await knowledge_sync.remove_forge_item(existing)
     return {"ok": True}

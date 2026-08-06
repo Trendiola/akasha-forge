@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
 
 from core import db, new_id, now_iso
+from routes import knowledge_sync
 
 router = APIRouter(prefix="/api", tags=["production"])
 
@@ -68,6 +69,7 @@ async def create_node(project_id: str, body: NodeCreate):
     count = await db.production_nodes.count_documents({"project_id": project_id, "parent_id": body.parent_id})
     node = Node(project_id=project_id, order=count, **body.model_dump())
     await db.production_nodes.insert_one(node.model_dump())
+    await knowledge_sync.sync_production_node(node.model_dump())
     return node
 
 
@@ -78,7 +80,9 @@ async def update_node(node_id: str, body: NodeUpdate):
     res = await db.production_nodes.update_one({"id": node_id}, {"$set": updates})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Node not found")
-    return await db.production_nodes.find_one({"id": node_id}, {"_id": 0})
+    doc = await db.production_nodes.find_one({"id": node_id}, {"_id": 0})
+    await knowledge_sync.sync_production_node(doc)
+    return doc
 
 
 @router.delete("/production/{node_id}")
@@ -92,4 +96,5 @@ async def delete_node(node_id: str):
         to_delete.extend(ids)
         frontier = ids
     await db.production_nodes.delete_many({"id": {"$in": to_delete}})
+    await knowledge_sync.remove_production_nodes(to_delete)
     return {"ok": True, "deleted": len(to_delete)}

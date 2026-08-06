@@ -335,3 +335,20 @@ async def brain_search(
     )
     results = await cursor.to_list(limit)
     return {"query": q, "project_id": project_id, "count": len(results), "results": results}
+
+
+class BackfillBody(BaseModel):
+    project_id: str
+
+    @field_validator("project_id")
+    @classmethod
+    def _nonempty(cls, v: str):
+        if not str(v).strip():
+            raise ValueError("project_id is required")
+        return str(v).strip()
+
+
+@router.post("/knowledge/backfill")
+async def backfill_knowledge(body: BackfillBody):
+    from routes import knowledge_sync
+    return await knowledge_sync.backfill_project(body.project_id)
