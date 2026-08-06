@@ -177,6 +177,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 async def on_startup():
     await db.projects.create_index("id", unique=True)
     await providers_hub.seed_providers()
+    await brain_route.ensure_knowledge_indexes()
     if await db.settings.count_documents({"id": "global"}) == 0:
         await db.settings.insert_one(dict(DEFAULT_SETTINGS))
     try:

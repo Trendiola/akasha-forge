@@ -82,6 +82,13 @@ Scope: Provider Hub only. No Forge modules modified; old Settings provider page 
 - Verified: testing agent 100% (backend 13/13 pytest; all acceptance flows: create/edit/delete/enable/disable/default-model + F5 persistence). Report: `/app/test_reports/iteration_8.json`.
 - Note: Test Connection is LOCAL key-format validation only (no real API calls), per spec.
 
+## AF-005B — Brain Knowledge Store & Search (backend only) (2026-06-06) ✅
+Scope: backend only, no frontend. Extended the existing `/api/brain` router (existing optimize/assist/status/history untouched and verified still working).
+- New `knowledge_items` MongoDB collection: `{id, project_id, entity_type, entity_id, title, text, tags[], source_module, metadata, created_at, updated_at}`. Uses shared `new_id`/`now_iso`; tags normalized (lowercase, trim, dedup).
+- Idempotent indexes (created on startup via `ensure_knowledge_indexes`): unique `id`, compound `project_id+entity_type`, compound `project_id+entity_id`, text index `knowledge_text` on title/text/tags (weights 10/5/3).
+- Endpoints: `POST /api/brain/knowledge` (create), `GET /api/brain/knowledge` (project-scoped list + filters), `GET /api/brain/knowledge/{id}`, `PUT` (partial, preserves id/project_id/created_at), `DELETE`, `POST /api/brain/knowledge/ingest` (upsert by project_id+entity_type+entity_id+source_module — no dupes), `GET /api/brain/search` (project-scoped `$text` search, relevance score, sort by score then updated_at).
+- Verified: `backend/tests/test_brain_knowledge.py` — 8 tests, all pass (covers acceptance 1–16 incl. project isolation, filters, ingest upsert, empty/invalid handling, existing-endpoint smoke).
+
 ## Framework Completion Sprint (2026-06)
 Built ONE reusable Forge CRUD framework and applied it consistently (no per-module CRUD duplication):
 - **Backend**: generic `forge_items` collection + `routes/forge_items.py` (list/create/get/update/delete by project+module+kind). Cascade-deletes with project. Added `ai_prompt` to Character.
