@@ -72,6 +72,16 @@ Scope: Publish Forge only. No backend changes.
 - Enabled **editing existing Release posts**: clicking a Release row opens the scheduler dialog pre-filled (title/content/platforms/schedule), label reads "Save changes", persists via `PUT /api/publish/posts/{id}` (partial `$set` preserves status/campaign_id), survives F5. Delete uses `stopPropagation`.
 - Verified: testing agent 100% (backend 4/4 pytest, all 4 acceptance flows incl. F5 persistence). Report: `/app/test_reports/iteration_7.json`.
 
+## AF-004 — Provider Hub Foundation (2026-06-06) ✅
+Scope: Provider Hub only. No Forge modules modified; old Settings provider page untouched.
+- New dedicated **card-based Provider Hub module** at `/providers` (nav item under System). Cards show logo monogram, name, type, connection status, enabled/disabled toggle, default-model select, masked API key, Test/Edit/Delete.
+- **Create/Edit dialog**: Provider Name, Type, API Key, Default Model, Base URL, Organization ID, Notes, Enable + optional catalog preset prefill.
+- Backend (`providers_hub.py`): added `default_model`, `organization_id`, `notes`, `last_test_ms`; create sets `enabled`; `POST /providers/{id}/test` returns `response_ms`; new `GET /provider-catalog` (11 providers); `seed_providers` idempotently ensures the 11 catalog providers exist + backfills fields. Keys encrypted (Fernet), only masked preview returned.
+- Providers seeded/available: OpenAI, Google Gemini, Anthropic Claude, ElevenLabs, Suno, Runway, Veo, Kling, Fal, Replicate, Stability AI (+ 3 legacy).
+- Disabled providers still excluded from Forges (existing gating unchanged).
+- Verified: testing agent 100% (backend 13/13 pytest; all acceptance flows: create/edit/delete/enable/disable/default-model + F5 persistence). Report: `/app/test_reports/iteration_8.json`.
+- Note: Test Connection is LOCAL key-format validation only (no real API calls), per spec.
+
 ## Framework Completion Sprint (2026-06)
 Built ONE reusable Forge CRUD framework and applied it consistently (no per-module CRUD duplication):
 - **Backend**: generic `forge_items` collection + `routes/forge_items.py` (list/create/get/update/delete by project+module+kind). Cascade-deletes with project. Added `ai_prompt` to Character.

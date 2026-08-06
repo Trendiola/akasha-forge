@@ -244,7 +244,7 @@ function ProviderCard({ p, onEdit }: { p: Provider; onEdit: (p: Provider) => voi
           {test.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plug className="h-3.5 w-3.5" />} Test
         </Button>
         <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => onEdit(p)} data-testid={`provider-edit-${p.id}`}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
-        <button className="text-muted-foreground hover:text-destructive" onClick={() => { del.mutate(p.id); toast.success(`${p.name} removed`); }} data-testid={`provider-delete-${p.id}`}><Trash2 className="h-4 w-4" /></button>
+        <button className="text-muted-foreground hover:text-destructive" onClick={async () => { try { await del.mutateAsync(p.id); toast.success(`${p.name} removed`); } catch { toast.error("Could not delete provider. Please try again."); } }} data-testid={`provider-delete-${p.id}`}><Trash2 className="h-4 w-4" /></button>
       </div>
     </div>
   );
