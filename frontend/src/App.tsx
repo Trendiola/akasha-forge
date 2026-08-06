@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { AppProvider } from "@/store/app-context";
 import { AppShell } from "@/components/layout/AppShell";
+import { isDesktop } from "@/lib/runtime";
 
 import AkashaCore from "@/modules/akasha-core";
 import AkashaBrain from "@/modules/akasha-brain";
@@ -22,9 +23,12 @@ import ProjectsPage from "@/pages/ProjectsPage";
 import Settings from "@/pages/settings/Settings";
 
 export default function App() {
+  // Packaged desktop shells load over a non-server origin where deep-link
+  // refresh needs hash routing; the web preview keeps clean BrowserRouter URLs.
+  const Router = isDesktop() ? HashRouter : BrowserRouter;
   return (
     <AppProvider>
-      <BrowserRouter>
+      <Router>
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<AkashaCore />} />
@@ -46,7 +50,7 @@ export default function App() {
             <Route path="settings/*" element={<Settings />} />
           </Route>
         </Routes>
-      </BrowserRouter>
+      </Router>
       <Toaster position="bottom-right" theme="dark" />
     </AppProvider>
   );

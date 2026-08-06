@@ -22,6 +22,9 @@ from routes import (
 app = FastAPI(title="Akasha Forge API")
 api_router = APIRouter(prefix="/api")
 
+APP_NAME = "Akasha Forge"
+APP_VERSION = "2.0"
+
 
 # ----------------------------- Projects -----------------------------
 class Project(BaseModel):
@@ -82,7 +85,18 @@ DEFAULT_SETTINGS = {
 
 @api_router.get("/")
 async def root():
-    return {"message": "Akasha Forge API", "status": "online", "version": "2.0"}
+    return {"message": "Akasha Forge API", "status": "online", "version": APP_VERSION}
+
+
+@api_router.get("/health")
+async def health():
+    """Lightweight readiness probe used by the desktop shell handshake."""
+    return {
+        "status": "ok",
+        "application": APP_NAME,
+        "version": APP_VERSION,
+        "timestamp": now_iso(),
+    }
 
 
 @api_router.get("/projects", response_model=List[Project])
@@ -194,3 +208,15 @@ async def on_startup():
 async def on_shutdown():
     from core import client
     client.close()
+
+
+if __name__ == "__main__":
+    # Standalone entry point for the future desktop shell (Tauri sidecar).
+    # Under Emergent/supervisor the app is launched via `uvicorn server:app`,
+    # so this block is inert there and preview compatibility is preserved.
+    import uvicorn
+
+    host = os.environ.get("AKASHA_HOST", "127.0.0.1")
+    port = int(os.environ.get("AKASHA_PORT", "8001"))
+    logger.info("Starting Akasha Forge backend on %s:%s", host, port)
+    uvicorn.run("server:app", host=host, port=port, log_level="info")

@@ -1,7 +1,8 @@
 import axios from "axios";
 import { toast } from "sonner";
+import { resolveBackendUrl } from "./runtime";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+export const BACKEND_URL = resolveBackendUrl();
 
 export const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,

@@ -106,6 +106,15 @@ Scope: backend only. Planning engine + provider-neutral render pipeline foundati
 - New `backend/video_adapters.py` — provider-neutral `VideoProviderAdapter` interface (validate_configuration/submit/get_status/download_result/cancel) + registry. NO concrete providers (Veo/Kling/Runway/Fal/Replicate) implemented — config always from Provider Hub.
 - Verified: `backend/tests/test_video_foundation.py` — 5 tests pass (plan gen, clip-count scaling, from-plan dedup, provider resolution + draft, queue/cancel/update/delete-protection). Full regression: 76/76 across all existing suites — no regressions.
 
+## AF-DESKTOP-002 — Desktop Runtime Configuration Foundation (2026-06-06) ✅
+Scope: remove browser/deploy assumptions blocking a future Tauri shell. No packaging, no Tauri/Electron/PyInstaller, no DB/storage changes, no UI redesign.
+- **Runtime backend URL** — new `frontend/src/lib/runtime.ts` `resolveBackendUrl()` priority: runtime-injected `window.__AKASHA_RUNTIME_CONFIG__.backendUrl` → `REACT_APP_BACKEND_URL` → `http://127.0.0.1:8001`. Centralized in `lib/api.ts` (all calls already route through it). No hard-coded 8001-only.
+- **Routing** — `App.tsx` uses `HashRouter` in desktop mode (`isDesktop()`), `BrowserRouter` on web preview; all routes/URLs unchanged for web.
+- **Backend host/port** — `server.py` gained a standalone `__main__` runner honoring `AKASHA_HOST` (default 127.0.0.1) / `AKASHA_PORT` (default 8001); inert under supervisor so preview is unaffected. Verified binds strictly to 127.0.0.1 on a custom port + clean shutdown.
+- **Health handshake** — new `GET /api/health` → `{status, application, version, timestamp}`; frontend `waitForBackend()` helper polls it with bounded timeout/retry + friendly error (no infinite loop).
+- **Desktop detection** — `window.__AKASHA_RUNTIME_CONFIG__` `{desktop, backendUrl, appDataDir}` read via `getRuntimeConfig()`/`isDesktop()`; no Tauri deps, no secrets.
+- Verified: backend regression 56/56; TS check clean; web preview loads (14 providers), routes navigate + deep-route refresh not blank; runtime override redirected calls to injected URL with friendly error toast.
+
 ## Framework Completion Sprint (2026-06)
 Built ONE reusable Forge CRUD framework and applied it consistently (no per-module CRUD duplication):
 - **Backend**: generic `forge_items` collection + `routes/forge_items.py` (list/create/get/update/delete by project+module+kind). Cascade-deletes with project. Added `ai_prompt` to Character.
