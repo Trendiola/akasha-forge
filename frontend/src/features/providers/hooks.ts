@@ -19,6 +19,13 @@ export function useProviderCategories() {
   });
 }
 
+export function useProviderCatalog() {
+  return useQuery({
+    queryKey: ["provider-catalog"],
+    queryFn: async () => (await api.get("/provider-catalog")).data as { name: string; category: string; base_url: string; models: string[] }[],
+  });
+}
+
 export function useUpdateProvider() {
   const qc = useQueryClient();
   return useMutation({

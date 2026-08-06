@@ -15,6 +15,7 @@ import {
   Settings,
   FolderOpen,
   Boxes,
+  Cpu,
   type LucideIcon,
 } from "lucide-react";
 import type { ProviderCategory } from "@/types";
@@ -292,6 +293,9 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: "System",
-    items: [{ label: "Settings", path: "/settings", icon: Settings }],
+    items: [
+      { label: "Provider Hub", path: "/providers", icon: Cpu },
+      { label: "Settings", path: "/settings", icon: Settings },
+    ],
   },
 ];

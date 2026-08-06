@@ -16,6 +16,7 @@ import LanguageForge from "@/modules/language-forge";
 import WorkflowForge from "@/modules/workflow-forge";
 import PublishForge from "@/modules/publish-forge";
 import PluginForge from "@/modules/plugin-forge";
+import ProviderHub from "@/modules/provider-hub";
 import Assets from "@/pages/Assets";
 import ProjectsPage from "@/pages/ProjectsPage";
 import Settings from "@/pages/settings/Settings";
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="workflow" element={<WorkflowForge />} />
             <Route path="publish" element={<PublishForge />} />
             <Route path="plugins" element={<PluginForge />} />
+            <Route path="providers" element={<ProviderHub />} />
             <Route path="assets" element={<Assets />} />
             <Route path="projects" element={<ProjectsPage />} />
             <Route path="settings/*" element={<Settings />} />

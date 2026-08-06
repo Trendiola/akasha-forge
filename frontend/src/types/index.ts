@@ -38,6 +38,10 @@ export interface Provider {
   configured: boolean;
   api_key_masked: string;
   last_validated: string;
+  last_test_ms?: number;
+  default_model?: string;
+  organization_id?: string;
+  notes?: string;
   models: string[];
   config: Record<string, unknown>;
   created_at: string;

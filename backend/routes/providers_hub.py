@@ -3,6 +3,7 @@
 Providers are never hardcoded in the UI. New providers/categories can be added
 by registering an adapter without modifying existing code.
 """
+import time
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
@@ -66,6 +67,9 @@ class Provider(BaseModel):
     kind: str = "api"
     base_url: str = ""
     models: List[str] = Field(default_factory=list)
+    default_model: str = ""
+    organization_id: str = ""
+    notes: str = ""
     enabled: bool = False
     is_default: bool = False
     priority: int = 100
@@ -75,6 +79,7 @@ class Provider(BaseModel):
     supported_features: List[str] = Field(default_factory=list)
     api_key_encrypted: str = ""
     last_validated: str = ""
+    last_test_ms: int = 0
     created_at: str = Field(default_factory=now_iso)
     updated_at: str = Field(default_factory=now_iso)
 
@@ -85,13 +90,20 @@ class ProviderCreate(BaseModel):
     kind: str = "api"
     base_url: str = ""
     models: List[str] = Field(default_factory=list)
+    default_model: str = ""
+    organization_id: str = ""
+    notes: str = ""
     api_key: str = ""
+    enabled: bool = False
 
 
 class ProviderUpdate(BaseModel):
     name: Optional[str] = None
     base_url: Optional[str] = None
     models: Optional[List[str]] = None
+    default_model: Optional[str] = None
+    organization_id: Optional[str] = None
+    notes: Optional[str] = None
     enabled: Optional[bool] = None
     is_default: Optional[bool] = None
     priority: Optional[int] = None
@@ -138,12 +150,14 @@ async def create_provider(body: ProviderCreate):
     provider = Provider(
         name=body.name, category=body.category, kind=body.kind,
         base_url=body.base_url, models=body.models,
+        default_model=body.default_model, organization_id=body.organization_id,
+        notes=body.notes, enabled=body.enabled,
         supported_features=_FEATURES.get(body.category, []),
     )
     if body.api_key:
         provider.api_key_encrypted = encrypt(body.api_key)
-        provider.status = STATUS_CONFIGURED
     doc = provider.model_dump()
+    doc["status"] = _derive_status(doc)
     await db.providers.insert_one(dict(doc))
     return _public(doc)
 
@@ -186,6 +200,7 @@ async def test_provider(provider_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail="Provider not found")
 
+    start = time.perf_counter()
     if not doc.get("enabled", False):
         result = {"status": STATUS_DISABLED, "message": "Provider is disabled. Enable it to test."}
     elif not doc.get("api_key_encrypted"):
@@ -198,6 +213,8 @@ async def test_provider(provider_id: str):
             "status": STATUS_READY if check["ok"] else STATUS_ERROR,
             "message": check["message"],
         }
+    response_ms = max(1, round((time.perf_counter() - start) * 1000))
+    result["response_ms"] = response_ms
 
     await db.providers.update_one(
         {"id": provider_id},
@@ -205,10 +222,32 @@ async def test_provider(provider_id: str):
             "status": result["status"],
             "error_message": "" if result["status"] == STATUS_READY else result["message"],
             "last_validated": now_iso(),
+            "last_test_ms": response_ms,
         }},
     )
     doc = await db.providers.find_one({"id": provider_id}, {"_id": 0})
     return {**result, "provider": _public(doc)}
+
+
+# ----------------------------- Catalog -----------------------------
+PROVIDER_CATALOG = [
+    {"name": "OpenAI", "category": "llm", "base_url": "https://api.openai.com/v1", "models": ["GPT-5.5", "GPT-5.4", "GPT-5.4 Mini"]},
+    {"name": "Google Gemini", "category": "llm", "base_url": "https://generativelanguage.googleapis.com", "models": ["Gemini 3", "Gemini 3.1 Pro", "Gemini 3 Flash"]},
+    {"name": "Anthropic Claude", "category": "llm", "base_url": "https://api.anthropic.com", "models": ["Claude Opus", "Claude Sonnet", "Claude Haiku"]},
+    {"name": "ElevenLabs", "category": "voice", "base_url": "https://api.elevenlabs.io", "models": ["ElevenLabs v3", "Multilingual v2"]},
+    {"name": "Suno", "category": "music", "base_url": "https://api.suno.ai", "models": ["Suno v5.5", "Suno v4"]},
+    {"name": "Runway", "category": "video", "base_url": "https://api.runwayml.com", "models": ["Gen-3", "Gen-2"]},
+    {"name": "Veo", "category": "video", "base_url": "https://generativelanguage.googleapis.com", "models": ["Veo 3.1", "Veo 3"]},
+    {"name": "Kling", "category": "video", "base_url": "https://api.klingai.com", "models": ["Kling 3", "Kling 2"]},
+    {"name": "Fal", "category": "image", "base_url": "https://fal.run", "models": ["flux-pro", "flux-dev"]},
+    {"name": "Replicate", "category": "image", "base_url": "https://api.replicate.com", "models": ["flux", "sdxl"]},
+    {"name": "Stability AI", "category": "image", "base_url": "https://api.stability.ai", "models": ["SD 3.5", "SDXL"]},
+]
+
+
+@router.get("/provider-catalog")
+async def provider_catalog():
+    return PROVIDER_CATALOG
 
 
 # ----------------------------- Seed -----------------------------
@@ -232,15 +271,38 @@ async def seed_providers():
             prov = Provider(**p, supported_features=_FEATURES.get(p["category"], []))
             docs.append(prov.model_dump())
         await db.providers.insert_many(docs)
-    else:
-        # backfill new fields on previously-seeded docs
-        async for doc in db.providers.find({}):
-            patch = {}
-            if "priority" not in doc:
-                patch["priority"] = 100
-            if "status" not in doc:
-                patch["status"] = STATUS_NOT_CONFIGURED
-            if "supported_features" not in doc:
-                patch["supported_features"] = _FEATURES.get(doc.get("category", ""), [])
-            if patch:
-                await db.providers.update_one({"id": doc["id"]}, {"$set": patch})
+
+    # Ensure every catalog provider exists (idempotent, non-destructive — matched by name).
+    existing_names = set(await db.providers.distinct("name"))
+    to_insert = []
+    for entry in PROVIDER_CATALOG:
+        if entry["name"] not in existing_names:
+            prov = Provider(
+                name=entry["name"], category=entry["category"], base_url=entry["base_url"],
+                models=entry["models"], default_model=entry["models"][0] if entry["models"] else "",
+                supported_features=_FEATURES.get(entry["category"], []),
+            )
+            to_insert.append(prov.model_dump())
+    if to_insert:
+        await db.providers.insert_many(to_insert)
+
+    # Backfill new/missing fields on previously-seeded docs.
+    async for doc in db.providers.find({}):
+        patch = {}
+        if "priority" not in doc:
+            patch["priority"] = 100
+        if "status" not in doc:
+            patch["status"] = STATUS_NOT_CONFIGURED
+        if "supported_features" not in doc:
+            patch["supported_features"] = _FEATURES.get(doc.get("category", ""), [])
+        if "default_model" not in doc:
+            models = doc.get("models", [])
+            patch["default_model"] = models[0] if models else ""
+        if "organization_id" not in doc:
+            patch["organization_id"] = ""
+        if "notes" not in doc:
+            patch["notes"] = ""
+        if "last_test_ms" not in doc:
+            patch["last_test_ms"] = 0
+        if patch:
+            await db.providers.update_one({"id": doc["id"]}, {"$set": patch})
