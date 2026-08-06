@@ -1,23 +1,25 @@
 import { useRef, useState } from "react";
 import type React from "react";
 import { toast } from "sonner";
-import { Upload, Eraser, Layers, Brush, Maximize, Scaling, Play, ImageIcon, Wand2 } from "lucide-react";
+import { Upload, Eraser, Layers, Brush, Maximize, Scaling, Play, ImageIcon, Wand2, FolderPlus, Images } from "lucide-react";
 import { fileUrl, uploadFile } from "@/lib/api";
 import { useImageOperations, useImageJobs, useCreateImageJob } from "@/features/imageEdit/hooks";
+import { useImageForge } from "@/features/imageEdit/ImageForgeContext";
 import { useCreateForgeItem } from "@/features/forge/hooks";
 import { useProviders } from "@/features/providers/hooks";
 import { ProviderRequired } from "@/components/forge/ProviderRequired";
-import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, any> = {
   object_removal: Eraser, background_replacement: Layers, inpainting: Brush, outpainting: Maximize, upscaling: Scaling,
 };
 
-export function ImageEditor({ projectId, accent = "#EC4899" }: { projectId?: string | null; accent?: string }) {
+export function ImageEditor({ accent = "#EC4899" }: { accent?: string }) {
+  const { projectId, activeAsset, galleries, setCanvasAsset, addToGallery } = useImageForge();
   const { data: ops = [] } = useImageOperations();
   const { data: jobs = [] } = useImageJobs(projectId);
   const createJob = useCreateImageJob();
@@ -25,9 +27,10 @@ export function ImageEditor({ projectId, accent = "#EC4899" }: { projectId?: str
   const { data: imageProviders = [] } = useProviders("image");
   const hasProvider = imageProviders.some((p) => p.enabled);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [source, setSource] = useState<{ id: string; url: string } | null>(null);
   const [op, setOp] = useState<string>("");
   const [prompt, setPrompt] = useState("");
+
+  const fileId: string | null = activeAsset?.data?.file_id ?? null;
 
   const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -35,20 +38,18 @@ export function ImageEditor({ projectId, accent = "#EC4899" }: { projectId?: str
     toast.info("Uploading…");
     try {
       const res = await uploadFile(file, "image-edit");
-      setSource({ id: res.id, url: res.url });
-      if (projectId) {
-        await createAsset.mutateAsync({ kind: "asset", title: file.name, data: { file_id: res.id, url: res.url, source: "upload" } });
-      }
-      toast.success("Image loaded and saved to Gallery");
+      const asset = await createAsset.mutateAsync({ kind: "asset", title: file.name, data: { file_id: res.id, url: res.url, source: "upload" } });
+      await setCanvasAsset(asset.id);
+      toast.success("Image loaded onto canvas and saved to Assets");
     } catch { toast.error("Upload failed. Please try again."); }
     e.target.value = "";
   };
 
   const run = async () => {
-    if (!source) return toast.error("Upload a source image first");
+    if (!fileId) return toast.error("Upload a source image first");
     if (!op) return toast.error("Select an operation");
     try {
-      const job = await createJob.mutateAsync({ operation: op, source_file_id: source.id, project_id: projectId });
+      const job = await createJob.mutateAsync({ operation: op, source_file_id: fileId, project_id: projectId });
       if (job.status === "error") toast.error(job.message);
       else toast.success(`Queued ${op.replace("_", " ")} on ${job.provider_name || "provider"}`);
     } catch { toast.error("Could not queue operation."); }
@@ -70,8 +71,8 @@ export function ImageEditor({ projectId, accent = "#EC4899" }: { projectId?: str
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
           <div className="flex items-center justify-center rounded-2xl border border-dashed border-border bg-card/40" style={{ minHeight: 280 }}>
-            {source ? (
-              <img src={fileUrl(source.id)} alt="source" className="max-h-[360px] rounded-xl object-contain" data-testid="canvas-image" />
+            {fileId ? (
+              <img src={fileUrl(fileId)} alt="source" className="max-h-[360px] rounded-xl object-contain" data-testid="canvas-image" />
             ) : (
               <div className="flex flex-col items-center gap-3 py-10 text-center">
                 <ImageIcon className="h-10 w-10 text-muted-foreground" />
@@ -90,9 +91,26 @@ export function ImageEditor({ projectId, accent = "#EC4899" }: { projectId?: str
             </div>
           </div>
 
-          {source && (
-            <div className="flex items-center justify-between">
-              <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => fileRef.current?.click()}><Upload className="h-3.5 w-3.5" /> Replace</Button>
+          {fileId && (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => fileRef.current?.click()}><Upload className="h-3.5 w-3.5" /> Replace</Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5" data-testid="canvas-add-to-gallery-btn"><FolderPlus className="h-3.5 w-3.5" /> Add to Gallery</Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56" data-testid="canvas-gallery-menu">
+                    <DropdownMenuLabel>Select gallery</DropdownMenuLabel>
+                    {galleries.length === 0 ? (
+                      <DropdownMenuItem disabled>No galleries yet</DropdownMenuItem>
+                    ) : (
+                      galleries.map((g) => (
+                        <DropdownMenuItem key={g.id} onClick={() => activeAsset && addToGallery(g.id, activeAsset.id)} data-testid={`canvas-gallery-option-${g.id}`}>{g.title}</DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
               <Button className="gap-2" onClick={run} disabled={createJob.isPending} style={{ background: accent }} data-testid="image-run-btn"><Play className="h-4 w-4" /> Run operation</Button>
             </div>
           )}
@@ -128,6 +146,9 @@ export function ImageEditor({ projectId, accent = "#EC4899" }: { projectId?: str
                 ))}
               </div>
             )}
+          </div>
+          <div className="rounded-xl border border-dashed border-border px-3 py-3 text-xs text-muted-foreground">
+            <Images className="mb-1 inline h-3.5 w-3.5" /> Open any image from the Assets tab onto this canvas. Your canvas restores automatically.
           </div>
         </div>
       </div>

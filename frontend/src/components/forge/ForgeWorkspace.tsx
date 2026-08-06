@@ -22,6 +22,8 @@ interface Props {
   module: ModuleDef;
   moduleKey: string;
   tabs: ForgeTab[];
+  activeTab?: string;
+  onTabChange?: (v: string) => void;
 }
 
 function CrudTab({ moduleKey, schema, accent }: { moduleKey: string; schema: ForgeSchema; accent: string }) {
@@ -91,9 +93,10 @@ function CrudTab({ moduleKey, schema, accent }: { moduleKey: string; schema: For
   );
 }
 
-export function ForgeWorkspace({ module, moduleKey, tabs }: Props) {
+export function ForgeWorkspace({ module, moduleKey, tabs, activeTab, onTabChange }: Props) {
   const project = useActiveProject();
   const first = tabs[0];
+  const controlled = activeTab !== undefined;
 
   return (
     <div className="animate-in fade-in duration-500" data-testid={`module-${module.id}`}>
@@ -103,7 +106,10 @@ export function ForgeWorkspace({ module, moduleKey, tabs }: Props) {
         <EmptyState icon={module.icon} accent={module.accent} title="Select a project"
           description={`${module.label} works within a project. Choose or create one to begin.`} />
       ) : (
-        <Tabs defaultValue={first?.id} className="w-full">
+        <Tabs
+          {...(controlled ? { value: activeTab, onValueChange: onTabChange } : { defaultValue: first?.id })}
+          className="w-full"
+        >
           <TabsList className="mb-6 h-auto flex-wrap justify-start gap-1 bg-secondary/40 p-1">
             {tabs.map((t) => (
               <TabsTrigger key={t.id} value={t.id} className="rounded-md px-4 py-1.5 text-sm data-[state=active]:bg-background" data-testid={`${module.id}-tab-${t.id}`}>{t.label}</TabsTrigger>

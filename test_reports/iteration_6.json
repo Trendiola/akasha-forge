@@ -1,0 +1,26 @@
+{
+  "summary": "Image Forge P2 (Canvas persistence, Open on Canvas, Add-to-Gallery) tested end-to-end. Backend persistence via generic /api/projects/{pid}/forge/image + /api/forge-items/{id} verified with 4 new pytest tests (all pass). Frontend Playwright flow validates all 7 acceptance criteria from the review request against the deployed URL: upload -> asset appears in Assets, canvas persists across tab switches, canvas persists after F5, Open-on-Canvas from asset card switches tabs and restores image, gallery creation + membership add from both Assets card and Canvas, duplicate membership blocked with 'Already in this gallery' toast, and gallery membership survives F5. No backend or frontend issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_image_forge_p2.py",
+    "/app/test_reports/pytest/image_forge_p2.xml",
+    "/app/test_reports/pytest/p2_end.png"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PUT /api/forge-items/{id} uses $set on the whole `data` dict; frontend correctly spreads existing data when updating gallery.asset_ids and canvas_state.asset_id. If a future caller forgets to spread, unrelated data fields will be silently lost. Consider server-side merge or documenting this contract on the endpoint.",
+    "ImageForgeContext creates a canvas_state forge item on first setCanvasAsset; there is no de-dup guard if two callers race at once (would result in >1 canvas_state doc per project). Low risk given the current UX, but the client picks canvasQ.data[0] arbitrarily — worth guarding with server-side unique index or single-writer logic.",
+    "Duplicate-membership prevention is client-only (addToGallery checks members.includes(assetId)). A concurrent second client could still add the same asset_id twice. Acceptable for local-first single-user scope but note as a limitation."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_image_forge_p2.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "None (no-auth app)",
+  "seed_data_creation": "Test project TEST_p2_ui and TEST_image_p2 created during tests and deleted after (cascade removes forge_items).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend upload endpoint is POST /api/files/upload with form fields file + category (NOT /api/files with 'purpose'). Forge PUT uses $set on data — always spread existing data when patching. Route for Image Forge is /image. localStorage key 'akasha.activeProject' bypasses the project selector for automated tests. Backend pytest.ini pins xdist loadscope which conflicts with -p no:xdist; use `-o addopts=` to override.",
+  "rca of the issue": "N/A — no issues found for P2 scope. Initial test failure was tester error (wrong file upload endpoint path/field name); corrected and re-verified."
+}
