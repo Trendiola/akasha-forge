@@ -81,7 +81,8 @@ hiddenimports += [
 
 # --- Application modules (routes are imported dynamically via `from routes import ...`) ---
 hiddenimports += collect_submodules("routes")
-hiddenimports += ["core", "mongo_compat", "video_adapters", "secret_vault"]
+hiddenimports += collect_submodules("services")
+hiddenimports += ["core", "mongo_compat", "video_adapters", "secret_vault", "services.video_execution"]
 
 # --- Optional LLM stack (Akasha Brain optimise/assist — lazily imported) ---
 # Included for a complete desktop build; not required by the smoke tests. Wrapped

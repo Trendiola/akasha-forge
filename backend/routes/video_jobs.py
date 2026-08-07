@@ -15,6 +15,8 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 from core import db, new_id, now_iso, logger
 from routes import brain, knowledge_sync
+from services import video_execution
+import video_adapters
 
 router = APIRouter(prefix="/api", tags=["video"])
 
@@ -358,8 +360,18 @@ async def update_video_job(job_id: str, body: RenderJobUpdate):
     if not existing:
         raise HTTPException(status_code=404, detail="Render job not found")
     updates = body.model_dump(exclude_none=True)
-    if "status" in updates and updates["status"] not in JOB_STATUSES:
-        raise HTTPException(status_code=422, detail=f"Invalid status. Allowed: {sorted(JOB_STATUSES)}")
+    if "status" in updates:
+        target = updates["status"]
+        if target not in JOB_STATUSES:
+            raise HTTPException(status_code=422, detail=f"Invalid status. Allowed: {sorted(JOB_STATUSES)}")
+        current = existing.get("status", "draft")
+        # Manual PUT is an admin override; it must still never resurrect a terminal
+        # job (the sprint's forbidden cases: completed→*, cancelled→active). The
+        # strict forward chain is enforced by the execution service.
+        if current in ("completed", "cancelled") and target in ("queued", "submitting", "processing"):
+            raise HTTPException(status_code=409, detail={
+                "code": "INVALID_TRANSITION",
+                "message": f"Cannot move a {current} job to '{target}'."})
     updates["updated_at"] = now_iso()
     await db.video_render_jobs.update_one({"id": job_id}, {"$set": updates})
     return await db.video_render_jobs.find_one({"id": job_id}, {"_id": 0})
@@ -385,11 +397,53 @@ async def queue_video_job(job_id: str):
     return {**doc, "queued": True}
 
 
+@router.post("/video-jobs/{job_id}/execute")
+async def execute_video_job(job_id: str):
+    """AF-VIDEO-002: submit a queued/draft job to its provider adapter."""
+    return await video_execution.execute_job(job_id)
+
+
+@router.post("/video-jobs/{job_id}/refresh")
+async def refresh_video_job(job_id: str):
+    """AF-VIDEO-002: poll a submitted job's provider status and persist it."""
+    return await video_execution.refresh_job(job_id)
+
+
+@router.post("/video-jobs/{job_id}/retry")
+async def retry_video_job(job_id: str):
+    """AF-VIDEO-002: reset a failed job to queued, preserving creative inputs."""
+    return await video_execution.retry_job(job_id)
+
+
+@router.post("/video-jobs/process-queue")
+async def process_video_queue(limit: int = Query(1, ge=1, le=5)):
+    """AF-VIDEO-002: advance up to `limit` queued jobs locally (concurrency ~1)."""
+    return await video_execution.process_queue(limit)
+
+
 @router.post("/video-jobs/{job_id}/cancel")
 async def cancel_video_job(job_id: str):
-    res = await db.video_render_jobs.update_one({"id": job_id}, {"$set": {"status": "cancelled", "updated_at": now_iso()}})
-    if res.matched_count == 0:
+    job = await db.video_render_jobs.find_one({"id": job_id}, {"_id": 0})
+    if not job:
         raise HTTPException(status_code=404, detail="Render job not found")
+    if job.get("status") == "completed":
+        raise HTTPException(status_code=409, detail={
+            "code": "INVALID_TRANSITION", "message": "A completed job cannot be cancelled."})
+    if job.get("status") == "cancelled":
+        return job
+    # Best-effort provider-side cancel (adapter-neutral; never leaks secrets).
+    if job.get("provider_job_id"):
+        try:
+            provider = await db.providers.find_one({"id": job.get("provider_id")}, {"_id": 0})
+            if provider:
+                adapter = video_adapters.get_video_adapter(
+                    (provider.get("kind") or "").strip().lower(), {})
+                if adapter is not None:
+                    await adapter.cancel(job["provider_job_id"])
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Provider cancel best-effort failed for job %s: %s", job_id, exc)
+    await db.video_render_jobs.update_one(
+        {"id": job_id}, {"$set": {"status": "cancelled", "updated_at": now_iso()}})
     return await db.video_render_jobs.find_one({"id": job_id}, {"_id": 0})
 
 
