@@ -10,11 +10,45 @@ concurrency issues. Persistence uses montydb's SQLite backend under
 <AKASHA_DATA_DIR>/database/.
 """
 import asyncio
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 # Single worker → serialize montydb access (safe for a single-user desktop app).
 _EXECUTOR = ThreadPoolExecutor(max_workers=1)
+
+# montydb's sqlite backend raises these on a collection whose backing store was
+# never created (no document ever inserted): either the per-collection db file
+# is missing ("unable to open database file") or its table was never created
+# ("no such table: documents"). Real MongoDB treats reads/deletes on such a
+# namespace as a no-op, so we mirror that — and ONLY for these specific cases,
+# re-raising every other OperationalError untouched.
+_MISSING_COLLECTION_MSGS = ("unable to open database file", "no such table")
+
+
+def _is_missing_collection(exc: Exception) -> bool:
+    return isinstance(exc, sqlite3.OperationalError) and any(
+        msg in str(exc) for msg in _MISSING_COLLECTION_MSGS
+    )
+
+
+class _DeleteResult:
+    """Minimal pymongo-compatible result for a no-op delete."""
+
+    def __init__(self):
+        self.deleted_count = 0
+        self.acknowledged = True
+        self.raw_result = {"n": 0, "ok": 1.0}
+
+
+def _guard(fn, default):
+    """Run fn; if montydb hits a not-yet-created collection, return default."""
+    try:
+        return fn()
+    except sqlite3.OperationalError as exc:
+        if _is_missing_collection(exc):
+            return default() if callable(default) else default
+        raise
 
 
 async def _run(fn):
@@ -44,14 +78,16 @@ class _Cursor:
         return self
 
     def _materialize(self):
-        cur = self._coll.find(self._filter, self._projection)
-        if self._sort is not None:
-            cur = cur.sort(*self._sort)
-        if self._skip:
-            cur = cur.skip(self._skip)
-        if self._limit:
-            cur = cur.limit(self._limit)
-        return list(cur)
+        def _do():
+            cur = self._coll.find(self._filter, self._projection)
+            if self._sort is not None:
+                cur = cur.sort(*self._sort)
+            if self._skip:
+                cur = cur.skip(self._skip)
+            if self._limit:
+                cur = cur.limit(self._limit)
+            return list(cur)
+        return _guard(_do, list)
 
     async def to_list(self, length=None):
         return await _run(self._materialize)
@@ -76,7 +112,7 @@ class _Collection:
                     return doc
                 return None
             return self._c.find_one(flt or {}, projection)
-        return await _run(_fn)
+        return await _run(lambda: _guard(_fn, None))
 
     def find(self, flt=None, projection=None):
         return _Cursor(self._c, flt or {}, projection)
@@ -94,16 +130,16 @@ class _Collection:
         return await _run(lambda: self._c.update_many(flt, update, upsert=upsert))
 
     async def delete_one(self, flt):
-        return await _run(lambda: self._c.delete_one(flt))
+        return await _run(lambda: _guard(lambda: self._c.delete_one(flt), _DeleteResult))
 
     async def delete_many(self, flt):
-        return await _run(lambda: self._c.delete_many(flt))
+        return await _run(lambda: _guard(lambda: self._c.delete_many(flt), _DeleteResult))
 
     async def count_documents(self, flt=None):
-        return await _run(lambda: self._c.count_documents(flt or {}))
+        return await _run(lambda: _guard(lambda: self._c.count_documents(flt or {}), 0))
 
     async def distinct(self, key, flt=None):
-        return await _run(lambda: self._c.distinct(key, flt or {}))
+        return await _run(lambda: _guard(lambda: self._c.distinct(key, flt or {}), list))
 
     async def create_index(self, keys, **kwargs):
         def _mk():

@@ -124,6 +124,13 @@ Scope: provider-neutral storage layer (remote default = Emergent, local = Window
 - Verified: `backend/tests/test_local_storage.py` — 8 tests (local dirs, image/video/audio/music put, unique ids, streaming+metadata, missing/traversal, delete target-only, Windows-style path, remote-mode API roundtrip). Full local-mode API proven end-to-end via standalone local server (upload→disk→stream→delete). Regression 45/45; TS clean; web preview functional.
 - Migration limitation: existing remote-only files are not migrated; in local mode old remote records return a clear 404 "unavailable in current storage mode" (no crash, no corruption).
 
+## AF-DESKTOP-004 — Local Database Shim (montydb) (2026-06) ✅
+Scope: root-cause fix only. Enables the backend to run fully offline on Windows Desktop using montydb (SQLite-backed) when `AKASHA_DB_BACKEND=local`, with no local MongoDB server.
+- **Bug fixed** in `backend/mongo_compat.py`: montydb throws `sqlite3.OperationalError` when read/delete/count operations touch a collection that was never created (no document inserted). Two signatures observed: `unable to open database file` (missing db file) and `no such table: documents` (table not created). This aborted the project-deletion cascade at `character_versions.delete_many`, leaving `knowledge_items` un-purged (Test 23 failure).
+- **Fix**: added a `_guard()` wrapper + `_is_missing_collection()` matcher that catches ONLY these two specific montydb "uncreated collection" signatures and mirrors MongoDB's no-op behavior: `find`→[], `find_one`→None, `delete_one`/`delete_many`→`_DeleteResult(deleted_count=0)`, `count_documents`→0, `distinct`→[]. Every other `OperationalError` is re-raised untouched. `insert_*`/`update_*` unchanged.
+- **Verified**: `tests/desktop_local_smoke.py` → 30/30 PASS incl. Test 23 project-deletion cascade (proj_gone, kn_gone, char_gone all True) + restart durability. Regression: `test_v2_extensions`, `test_video_foundation`, `test_provider_hub`, `test_brain_*`, `test_forge_items`, `test_local_storage`, `test_publish_forge_edit`, `test_image_forge_p2` all PASS against live remote/MongoDB backend. No remote-mode behavior changed (fix confined to the montydb shim).
+- Note: `test_image_forge_p2` shows false failures only under pytest-xdist parallel workers (pre-existing shared class-level state across dependent tests); passes fully with `-n0`.
+
 ## Framework Completion Sprint (2026-06)
 Built ONE reusable Forge CRUD framework and applied it consistently (no per-module CRUD duplication):
 - **Backend**: generic `forge_items` collection + `routes/forge_items.py` (list/create/get/update/delete by project+module+kind). Cascade-deletes with project. Added `ai_prompt` to Character.
