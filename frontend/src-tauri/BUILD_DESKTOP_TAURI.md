@@ -134,6 +134,21 @@ yarn tauri dev
 
 ---
 
+## Version consistency
+The **release version of record is `version` in `src-tauri/tauri.conf.json`**
+(currently `2.0.0`) — it drives the app version and the NSIS installer.
+- `src-tauri/Cargo.toml` `version` is kept in sync (`2.0.0`).
+- `backend/server.py` `APP_VERSION` (`"2.0"`) is the API/`/api/health` version (informational; independent of the installer).
+- `frontend/package.json` `version` (`0.1.0`) is **not** used for packaging — ignore it.
+
+**Before a release:** bump `tauri.conf.json` `version` and mirror it in `Cargo.toml`. No other file needs changing for the installer version.
+
+## Windows build automation
+`scripts/build_windows.ps1` runs the whole chain (deps → React build → PyInstaller
+one-dir → stage into `resources/backend/AkashaForgeBackend/` → `tauri build` → NSIS).
+Flags: `-SkipBackend` (reuse `backend/dist`), `-NoInstaller` (`tauri build --no-bundle`).
+Native Windows acceptance steps: `WINDOWS_ACCEPTANCE_CHECKLIST.md`.
+
 ## Runtime behaviour (implemented in `src/lib.rs`)
 - **Data dir:** OS app-data (`%APPDATA%\com.akashaforge.desktop` via Tauri) →
   `AKASHA_DATA_DIR`. All mutable data (`database/ storage/ projects/ cache/

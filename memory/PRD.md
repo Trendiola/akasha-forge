@@ -163,6 +163,20 @@ Scope: replace AF-006's temporary plaintext `.akasha_secret` with a secure per-i
 - **Windows-only validation still required**: real keyring→Credential Manager/DPAPI storage (this container is headless Linux → exercised the file fallback only), and the native Tauri/Rust compile.
 - **Remaining desktop blockers**: Windows installer & deliverables (AF-DESKTOP-008).
 
+## AF-DESKTOP-008 — Windows Release Packaging Automation (2026-06) ✅ (native build/installer to be produced on Windows)
+Scope: finish the remaining Windows release-packaging config + automation; reuse (not rebuild) AF-DESKTOP-002→007. This container is Linux aarch64 → no native `.exe`/NSIS built here.
+- **Audit — already complete & reused (unchanged):** `tauri.conf.json` (productName "Akasha Forge", id `com.akashaforge.desktop`, v2.0.0, one-dir backend as bundled resource, pre-React config injection), `Cargo.toml`/`build.rs`/`main.rs`/`lib.rs` (sidecar lifecycle), `capabilities/`, `backend/build.spec` (one-dir + keyring), `secret_vault.py` (keyring/DPAPI), both BUILD docs.
+- **Gaps closed this sprint:**
+  - **Icons:** `icons/` was empty → generated the full set from `app-icon.png` (converted JPEG→real PNG first) via `tauri icon`; all 5 `bundle.icon` paths (32/128/128@2x/icns/ico) now exist and are committed.
+  - **NSIS + WebView2:** added `bundle.windows` → `nsis.installMode="currentUser"` (no admin, installs under %LOCALAPPDATA%; user data stays in app-data dir untouched by uninstall) + `webviewInstallMode="downloadBootstrapper"` (small online installer; no-op if WebView2 present). Scoped `bundle.targets` to `["nsis"]` (avoids the WiX/MSI toolchain).
+  - **Build automation:** new `scripts/build_windows.ps1` (fail-fast) — validate tools → yarn install → React build → PyInstaller one-dir via existing `build.spec` → verify `AkashaForgeBackend.exe` + `_internal/` → stage the COMPLETE one-dir into `src-tauri/resources/backend/AkashaForgeBackend/` → `tauri build` (NSIS) → print artifact paths. Flags `-SkipBackend`, `-NoInstaller`.
+  - **Acceptance checklist:** new `src-tauri/WINDOWS_ACCEPTANCE_CHECKLIST.md` (34 checks incl. Credential Manager master-key, no plaintext, no orphan, cascade, installer/uninstall preserves user data).
+  - **Version note:** documented `tauri.conf.json version` (=Cargo `2.0.0`) as the installer version of record; `server.py APP_VERSION="2.0"` informational; `package.json 0.1.0` unused for packaging.
+- **Files changed:** `frontend/src-tauri/tauri.conf.json`, `frontend/src-tauri/icons/*` (generated), `frontend/src-tauri/app-icon.png` (JPEG→PNG), `scripts/build_windows.ps1` (new), `frontend/src-tauri/WINDOWS_ACCEPTANCE_CHECKLIST.md` (new), `frontend/src-tauri/BUILD_DESKTOP_TAURI.md` (version + automation sections), `PRD.md`. No app source (backend/frontend) changed.
+- **Validated here:** `tauri.conf.json` valid JSON + all 5 icons exist; `tsc --noEmit` clean; `desktop_local_smoke.py` **30/30**; live remote `/api/health` ok. (Lifecycle harness unchanged from AF-007 — no code affecting it changed.)
+- **Windows-native still required:** actual PyInstaller/Rust/NSIS build, `Akasha Forge.exe` launch, WebView2 bootstrap, Credential Manager verification, installer/uninstall/reinstall data-preservation (run `scripts/build_windows.ps1` + the checklist on Windows).
+- **Desktop packaging foundation complete.** No remaining desktop blockers beyond the on-Windows build/validation.
+
 ## Framework Completion Sprint (2026-06)
 Built ONE reusable Forge CRUD framework and applied it consistently (no per-module CRUD duplication):
 - **Backend**: generic `forge_items` collection + `routes/forge_items.py` (list/create/get/update/delete by project+module+kind). Cascade-deletes with project. Added `ai_prompt` to Character.
