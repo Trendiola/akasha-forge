@@ -81,13 +81,34 @@ hiddenimports += [
 
 # --- Application modules (routes are imported dynamically via `from routes import ...`) ---
 hiddenimports += collect_submodules("routes")
-hiddenimports += ["core", "mongo_compat", "video_adapters"]
+hiddenimports += ["core", "mongo_compat", "video_adapters", "secret_vault"]
 
 # --- Optional LLM stack (Akasha Brain optimise/assist — lazily imported) ---
 # Included for a complete desktop build; not required by the smoke tests. Wrapped
 # best-effort so a heavy/edge litellm dependency never hard-fails the freeze.
 for _pkg in ("emergentintegrations", "litellm"):
     _add(_pkg, metadata=True)
+
+# --- Secret vault (AF-DESKTOP-007) ---
+# keyring + its OS backends load dynamically; bundle them so the frozen backend
+# can reach Windows Credential Manager (DPAPI) at runtime. Non-Windows backends
+# are harmless extras. copy_metadata is required for keyring's entry-point
+# backend discovery.
+for _pkg in ("keyring", "jaraco"):
+    _add(_pkg, metadata=True)
+hiddenimports += collect_submodules("keyring")
+hiddenimports += [
+    "keyring.backends",
+    "keyring.backends.Windows",
+    "keyring.backends.SecretService",
+    "keyring.backends.macOS",
+    "keyring.backends.fail",
+    "keyring.backends.chainer",
+]
+try:
+    datas += copy_metadata("importlib_metadata")
+except Exception:
+    pass
 
 a = Analysis(
     ["server.py"],

@@ -83,10 +83,15 @@ The frozen backend is configured **entirely via environment variables** — no
 | `AKASHA_HOST`       | Bind host                                      | `127.0.0.1`                      |
 | `AKASHA_PORT`       | Bind port                                      | `8001` (or any free port)        |
 | `DB_NAME`           | Local database name                            | `akasha_forge`                   |
-| `AKASHA_SECRET_KEY` | Fernet key for provider-key encryption         | *(per-install; AF-DESKTOP-007)*  |
+| `AKASHA_VAULT_BACKEND` | `auto` (default) / `keyring` / `file`       | `auto`                           |
 
-`AKASHA_SECRET_KEY` must be a valid 32-byte url-safe base64 Fernet key. A secure
-per-install keyring/DPAPI source is scoped for **AF-DESKTOP-007** (not this sprint).
+**Secrets (AF-DESKTOP-007):** you no longer need to supply `AKASHA_SECRET_KEY`.
+On first launch the backend generates a per-install Fernet **master key** and
+stores it in the OS-protected secret vault (`keyring` → Windows Credential
+Manager / DPAPI). It is reused on every launch and used to encrypt Provider Hub
+API keys at rest. `AKASHA_SECRET_KEY` is still honored if set (used by the web
+preview / CI). On headless Linux with no OS keyring, `auto` falls back to a
+DEV-ONLY `0600` file vault under `<AKASHA_DATA_DIR>/vault/` (never for production).
 
 ### Data layout under `AKASHA_DATA_DIR`
 ```

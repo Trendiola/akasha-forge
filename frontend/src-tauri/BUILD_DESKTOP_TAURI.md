@@ -142,9 +142,12 @@ yarn tauri dev
 - **Sidecar env:** `AKASHA_HOST=127.0.0.1`, `AKASHA_PORT=<chosen>`,
   `AKASHA_DATA_DIR=<app data>`, `STORAGE_BACKEND=local`,
   `AKASHA_DB_BACKEND=local`, `DB_NAME=akasha_forge`, `AKASHA_SECRET_KEY=<see below>`.
-- **Secret:** `AKASHA_SECRET_KEY` is read from the environment, else a per-install
-  key is generated and stored at `<AKASHA_DATA_DIR>\.akasha_secret`. **Temporary**
-  — AF-DESKTOP-007 replaces this with an OS keyring/DPAPI vault.
+- **Secret:** the backend self-provisions its Fernet **master key** via the
+  AF-DESKTOP-007 secure vault (`keyring` → Windows Credential Manager / DPAPI),
+  generated once per install and reused. The Tauri shell passes **no** secrets —
+  no `AKASHA_SECRET_KEY`, no provider keys — nothing sensitive on the command
+  line or in the injected runtime config. Provider API keys stay encrypted in the
+  local DB with this master key.
 - **Handshake:** bounded 30 s `/api/health` poll before the window opens; on
   failure the window shows a startup-error message (no blank/hung app).
 - **Injection:** `window.__AKASHA_RUNTIME_CONFIG__ = {desktop:true, backendUrl,

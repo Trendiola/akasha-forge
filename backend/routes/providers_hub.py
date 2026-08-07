@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
 
-from core import db, new_id, now_iso, encrypt, decrypt, mask_key
+from core import db, new_id, now_iso, encrypt, decrypt, mask_key, logger
 
 router = APIRouter(prefix="/api", tags=["providers"])
 
@@ -191,6 +191,13 @@ async def delete_provider(provider_id: str):
     res = await db.providers.delete_one({"id": provider_id})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Provider not found")
+    # Forward-compat (AF-DESKTOP-007): best-effort removal of any optional vault
+    # entry for this provider. Never blocks deletion; never logs the secret value.
+    try:
+        import secret_vault
+        secret_vault.delete_secret(secret_vault.provider_key_name(provider_id))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Vault cleanup skipped for provider %s: %s", provider_id, exc)
     return {"ok": True}
 
 

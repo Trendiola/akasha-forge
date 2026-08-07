@@ -77,37 +77,6 @@ fn resolve_backend_binary(app: &tauri::AppHandle) -> Option<PathBuf> {
     None
 }
 
-/// Provide a valid Fernet key for the backend without hard-coding one.
-///
-/// Precedence: inherited `AKASHA_SECRET_KEY` → a per-install key persisted under
-/// the data dir. This is a **temporary** placeholder; AF-DESKTOP-007 replaces it
-/// with an OS keyring/DPAPI-backed vault.
-fn ensure_secret(data_dir: &PathBuf) -> String {
-    if let Ok(v) = std::env::var("AKASHA_SECRET_KEY") {
-        if !v.trim().is_empty() {
-            return v;
-        }
-    }
-    let secret_path = data_dir.join(".akasha_secret");
-    if let Ok(existing) = std::fs::read_to_string(&secret_path) {
-        let t = existing.trim().to_string();
-        if !t.is_empty() {
-            return t;
-        }
-    }
-    let key = generate_fernet_key();
-    let _ = std::fs::write(&secret_path, &key);
-    key
-}
-
-/// 32 random bytes, url-safe base64 with padding — a valid `cryptography` Fernet key.
-fn generate_fernet_key() -> String {
-    use base64::{engine::general_purpose::URL_SAFE, Engine};
-    let mut bytes = [0u8; 32];
-    getrandom::getrandom(&mut bytes).expect("secure RNG unavailable");
-    URL_SAFE.encode(bytes)
-}
-
 /// Poll `${url}` until it reports `{"status":"ok"}` or the deadline passes.
 /// Bounded — never loops forever.
 fn wait_for_health(url: &str, timeout: Duration) -> bool {
@@ -181,10 +150,11 @@ pub fn run() {
             let port = pick_free_port();
             let backend_url = format!("http://127.0.0.1:{}", port);
 
-            // 3) Per-install secret (temporary; AF-DESKTOP-007 = real vault).
-            let secret = ensure_secret(&data_dir);
-
-            // 4) Launch the frozen backend sidecar with the local desktop env.
+            // 3) Launch the frozen backend sidecar with the local desktop env.
+            //    The backend self-provisions its master key via the AF-DESKTOP-007
+            //    secure vault (OS keyring/DPAPI on Windows) — the shell passes NO
+            //    secrets: no AKASHA_SECRET_KEY, no provider keys, nothing sensitive
+            //    on the command line or in the injected runtime config.
             //    AKASHA_SKIP_SIDECAR=1 lets `tauri dev` reuse an already-running
             //    backend (dev only) via AKASHA_DEV_BACKEND_URL.
             let skip = std::env::var("AKASHA_SKIP_SIDECAR")
@@ -200,8 +170,7 @@ pub fn run() {
                             .env("AKASHA_DATA_DIR", &data_dir)
                             .env("STORAGE_BACKEND", "local")
                             .env("AKASHA_DB_BACKEND", "local")
-                            .env("DB_NAME", "akasha_forge")
-                            .env("AKASHA_SECRET_KEY", &secret);
+                            .env("DB_NAME", "akasha_forge");
                         #[cfg(windows)]
                         {
                             use std::os::windows::process::CommandExt;

@@ -41,7 +41,72 @@ def new_id() -> str:
 
 
 # ----------------------------- Encryption ---------------------------
-_fernet = Fernet(os.environ["AKASHA_SECRET_KEY"].encode())
+# Master-key resolution (AF-DESKTOP-007), in order:
+#   1. AKASHA_SECRET_KEY env  → remote/web-preview & existing tests unchanged.
+#   2. secure vault `akasha_master_key` (desktop; persisted across launches).
+#   3. generate a new secure Fernet key, store it in the vault, reuse next time.
+# The raw key is never logged and never exposed to the frontend/runtime config.
+import secret_vault
+
+
+def _valid_fernet_key(value: str) -> bool:
+    try:
+        Fernet((value or "").encode())
+        return True
+    except Exception:
+        return False
+
+
+def _migrate_akasha_secret_file() -> None:
+    """One-time, safe migration of AF-006's temporary plaintext `.akasha_secret`.
+
+    Only runs if the file exists AND the vault has no master key yet. Verifies a
+    vault round-trip before deleting the plaintext file; on any failure the file
+    is left untouched and provider credentials are never at risk.
+    """
+    secret_path = AKASHA_DATA_DIR / ".akasha_secret"
+    try:
+        if not secret_path.exists():
+            return
+        if secret_vault.secret_exists(secret_vault.MASTER_KEY_NAME):
+            # Vault already provisioned — do not overwrite; only retire the file
+            # if it is provably equivalent to the stored key.
+            existing = (secret_path.read_text(encoding="utf-8") or "").strip()
+            if existing and existing == secret_vault.get_secret(secret_vault.MASTER_KEY_NAME):
+                secret_path.unlink()
+                logger.info("Retired redundant .akasha_secret (matches vault master key).")
+            return
+        raw = (secret_path.read_text(encoding="utf-8") or "").strip()
+        if not raw or not _valid_fernet_key(raw):
+            logger.warning("Skipping .akasha_secret migration: file empty or not a valid key.")
+            return
+        secret_vault.set_secret(secret_vault.MASTER_KEY_NAME, raw)
+        if secret_vault.get_secret(secret_vault.MASTER_KEY_NAME) != raw:
+            logger.error("Master-key migration verification failed; keeping .akasha_secret.")
+            return
+        # Verified in vault → safe to remove the plaintext file.
+        secret_path.unlink()
+        logger.info("Migrated master key from .akasha_secret to secure vault; plaintext removed.")
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Master-key migration error (%s); leaving .akasha_secret untouched.", exc)
+
+
+def _resolve_master_key() -> str:
+    env_key = os.environ.get("AKASHA_SECRET_KEY")
+    if env_key and env_key.strip():
+        return env_key.strip()
+    # Desktop/local: use the secure vault (migrate the temp file first if present).
+    _migrate_akasha_secret_file()
+    key = secret_vault.get_secret(secret_vault.MASTER_KEY_NAME)
+    if key and _valid_fernet_key(key):
+        return key
+    key = Fernet.generate_key().decode()
+    secret_vault.set_secret(secret_vault.MASTER_KEY_NAME, key)
+    logger.info("Generated a new Akasha master key and stored it in the secure vault.")
+    return key
+
+
+_fernet = Fernet(_resolve_master_key().encode())
 
 
 def encrypt(value: str) -> str:

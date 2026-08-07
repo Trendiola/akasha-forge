@@ -45,16 +45,16 @@ def pick_free_port():
 
 
 def secret():
-    with open(os.path.join(BACKEND_DIR, ".env")) as f:
-        for line in f:
-            if line.startswith("AKASHA_SECRET_KEY="):
-                return line.split("=", 1)[1].strip()
+    # AF-DESKTOP-007: the desktop shell no longer passes AKASHA_SECRET_KEY —
+    # the backend self-provisions its master key via the secure vault. This
+    # helper is retained only for the (unused) remote-mode path and returns "".
     return ""
 
 
 def spawn(port):
-    # Mirrors the Rust Command env exactly.
+    # Mirrors the Rust Command env exactly (AF-DESKTOP-007: NO secrets passed).
     env = dict(os.environ)
+    env.pop("AKASHA_SECRET_KEY", None)  # prove backend self-provisions via vault
     env.update({
         "AKASHA_HOST": "127.0.0.1",
         "AKASHA_PORT": str(port),
@@ -62,7 +62,6 @@ def spawn(port):
         "STORAGE_BACKEND": "local",
         "AKASHA_DB_BACKEND": "local",
         "DB_NAME": "akasha_forge",
-        "AKASHA_SECRET_KEY": secret(),
     })
     return subprocess.Popen([FROZEN], env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -123,6 +122,17 @@ def main():
     print("   injected __AKASHA_RUNTIME_CONFIG__ =", json.dumps(runtime_cfg))
     check("6 runtime-config backendUrl matches sidecar port",
           runtime_cfg["backendUrl"].endswith(str(port)) and runtime_cfg["desktop"] is True)
+    check("6b runtime-config exposes NO secrets",
+          not any(k in runtime_cfg for k in ("secret", "api_key", "AKASHA_SECRET_KEY", "master_key")))
+
+    # (vault) backend self-provisioned a master key WITHOUT AKASHA_SECRET_KEY env
+    import glob
+    vault_file = os.path.join(DATA_DIR, "vault", "secrets.json")
+    vault_has_master = False
+    if os.path.isfile(vault_file):
+        with open(vault_file) as vf:
+            vault_has_master = "akasha_master_key" in json.load(vf)
+    check("V1 first launch created master key in vault (no env secret)", vault_has_master)
 
     # (bind) backend bound to loopback only
     with socket.socket() as sk:
