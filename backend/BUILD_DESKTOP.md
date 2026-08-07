@@ -85,6 +85,13 @@ The frozen backend is configured **entirely via environment variables** — no
 | `DB_NAME`           | Local database name                            | `akasha_forge`                   |
 | `AKASHA_VAULT_BACKEND` | `auto` (default) / `keyring` / `file`       | `auto`                           |
 
+**FFmpeg (AF-VIDEO-003):** final multi-shot MP4 assembly (`POST /api/video-export`)
+shells out to `ffmpeg`/`ffprobe`. They must be resolvable on `PATH`, or set
+`AKASHA_FFMPEG` / `AKASHA_FFPROBE` to explicit paths. For the Windows installer,
+bundle `ffmpeg.exe`/`ffprobe.exe` (e.g. under the app resources) and point those
+env vars at them — finalized during Windows release validation. If absent, export
+returns a clear `FFMPEG_NOT_AVAILABLE` error (the rest of the app is unaffected).
+
 **Secrets (AF-DESKTOP-007):** you no longer need to supply `AKASHA_SECRET_KEY`.
 On first launch the backend generates a per-install Fernet **master key** and
 stores it in the OS-protected secret vault (`keyring` → Windows Credential

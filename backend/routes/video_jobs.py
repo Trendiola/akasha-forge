@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 from core import db, new_id, now_iso, logger
 from routes import brain, knowledge_sync
-from services import video_execution
+from services import video_execution, video_export
 import video_adapters
 
 router = APIRouter(prefix="/api", tags=["video"])
@@ -419,6 +419,24 @@ async def retry_video_job(job_id: str):
 async def process_video_queue(limit: int = Query(1, ge=1, le=5)):
     """AF-VIDEO-002: advance up to `limit` queued jobs locally (concurrency ~1)."""
     return await video_execution.process_queue(limit)
+
+
+class VideoExportBody(BaseModel):
+    project_id: str
+    output_name: str = ""
+
+    @field_validator("project_id")
+    @classmethod
+    def _nonempty(cls, v: str):
+        if not str(v).strip():
+            raise ValueError("project_id is required")
+        return str(v).strip()
+
+
+@router.post("/video-export")
+async def export_project_video(body: VideoExportBody):
+    """AF-VIDEO-003: assemble a project's completed clips into one final MP4."""
+    return await video_export.assemble_project(body.project_id, body.output_name)
 
 
 @router.post("/video-jobs/{job_id}/cancel")
