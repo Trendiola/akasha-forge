@@ -15,10 +15,21 @@ load_dotenv(ROOT_DIR / ".env")
 
 logger = logging.getLogger("akasha")
 
+# Desktop data root (shared with local file storage — AF-DESKTOP-003).
+AKASHA_DATA_DIR = Path(os.environ.get("AKASHA_DATA_DIR") or (ROOT_DIR / "akasha-data"))
+
 # ----------------------------- Database -----------------------------
-mongo_url = os.environ["MONGO_URL"]
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ["DB_NAME"]]
+# remote (default) = MongoDB via motor (Emergent/web preview, unchanged).
+# local = self-contained montydb (SQLite) under <AKASHA_DATA_DIR>/database/ for desktop.
+AKASHA_DB_BACKEND = (os.environ.get("AKASHA_DB_BACKEND") or "remote").strip().lower()
+
+if AKASHA_DB_BACKEND == "local":
+    from mongo_compat import make_local_db
+    client, db = make_local_db(AKASHA_DATA_DIR, os.environ.get("DB_NAME", "akasha_forge"))
+else:
+    mongo_url = os.environ["MONGO_URL"]
+    client = AsyncIOMotorClient(mongo_url)
+    db = client[os.environ["DB_NAME"]]
 
 
 def now_iso() -> str:
@@ -68,7 +79,6 @@ EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
 APP_NAME = "akasha-forge"
 
 STORAGE_BACKEND = (os.environ.get("STORAGE_BACKEND") or "remote").strip().lower()
-AKASHA_DATA_DIR = Path(os.environ.get("AKASHA_DATA_DIR") or (ROOT_DIR / "akasha-data"))
 STORAGE_ROOT = AKASHA_DATA_DIR / "storage"
 
 _CANONICAL = {"images", "videos", "audio", "music", "documents", "thumbnails", "exports"}
@@ -269,4 +279,17 @@ def resolve_object_path(path: str):
     if STORAGE_BACKEND == "local":
         return _resolve_within(STORAGE_ROOT, path)
     return None
+
+
+def backup_local_database() -> str:
+    """Minimal backup foundation (local DB only): copy the sqlite DB dir into
+    <AKASHA_DATA_DIR>/backups/<timestamp>/. No UI, no scheduling, no cloud."""
+    if AKASHA_DB_BACKEND != "local":
+        raise RuntimeError("backup_local_database only applies to the local database backend")
+    import shutil
+    src = AKASHA_DATA_DIR / "database"
+    dest = AKASHA_DATA_DIR / "backups" / datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(src, dest)
+    return str(dest)
 

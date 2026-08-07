@@ -1,9 +1,11 @@
 """Akasha Brain — Command Center, Prompt Optimizer, Context Engine (lightweight)."""
 import os
+import re
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
+import core
 from core import db, now_iso, new_id, logger
 
 router = APIRouter(prefix="/api/brain", tags=["brain"])
@@ -321,6 +323,10 @@ async def brain_search(
 ):
     if not q.strip():
         return {"query": q, "project_id": project_id, "count": 0, "results": []}
+
+    if getattr(core, "AKASHA_DB_BACKEND", "remote") == "local":
+        return await _local_search(project_id, q, entity_type, source_module, tag, limit)
+
     query: Dict[str, Any] = {"project_id": project_id, "$text": {"$search": q}}
     if entity_type:
         query["entity_type"] = entity_type
@@ -335,6 +341,31 @@ async def brain_search(
     )
     results = await cursor.to_list(limit)
     return {"query": q, "project_id": project_id, "count": len(results), "results": results}
+
+
+async def _local_search(project_id, q, entity_type, source_module, tag, limit):
+    """Keyword search fallback for the local (montydb) backend, which lacks $text.
+    Scores by term-occurrence across title/text/tags; sorts by score then updated_at."""
+    query: Dict[str, Any] = {"project_id": project_id}
+    if entity_type:
+        query["entity_type"] = entity_type
+    if source_module:
+        query["source_module"] = source_module
+    if tag:
+        query["tags"] = tag.strip().lower()
+    docs = await db.knowledge_items.find(query, {"_id": 0}).to_list(2000)
+    terms = [t for t in re.split(r"\W+", q.lower()) if t]
+    scored = []
+    for d in docs:
+        hay = (str(d.get("title", "")) + " " + str(d.get("text", "")) + " " + " ".join(d.get("tags", []) or [])).lower()
+        score = sum(hay.count(t) for t in terms)
+        if score > 0:
+            item = dict(d)
+            item["score"] = float(score)
+            scored.append(item)
+    scored.sort(key=lambda x: (x["score"], x.get("updated_at", "")), reverse=True)
+    scored = scored[:limit]
+    return {"query": q, "project_id": project_id, "count": len(scored), "results": scored}
 
 
 class BackfillBody(BaseModel):
