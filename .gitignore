@@ -30,6 +30,11 @@ next-env.d.ts
 dist/
 dist
 
+# PyInstaller desktop backend freeze (AF-DESKTOP-005) — large, regenerated locally
+backend/build/
+backend/dist/
+*.spec.bak
+
 # Environment files (comprehensive coverage)
 
 *token.json*

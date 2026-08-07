@@ -219,4 +219,7 @@ if __name__ == "__main__":
     host = os.environ.get("AKASHA_HOST", "127.0.0.1")
     port = int(os.environ.get("AKASHA_PORT", "8001"))
     logger.info("Starting Akasha Forge backend on %s:%s", host, port)
-    uvicorn.run("server:app", host=host, port=port, log_level="info")
+    # Pass the app object (not an import string) so this works both as a plain
+    # `python server.py` dev launch and inside a frozen PyInstaller bundle where
+    # re-importing "server" by name is not available.
+    uvicorn.run(app, host=host, port=port, log_level="info")

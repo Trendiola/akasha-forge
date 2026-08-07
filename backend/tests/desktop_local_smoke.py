@@ -37,7 +37,12 @@ def start():
         "AKASHA_DATA_DIR": DATA_DIR, "AKASHA_HOST": HOST, "AKASHA_PORT": str(PORT),
         "DB_NAME": "akasha_forge_test",
     })
-    p = subprocess.Popen([sys.executable, "server.py"], cwd=BACKEND_DIR, env=env,
+    # AF-DESKTOP-005: allow launching the frozen PyInstaller executable instead of
+    # `python server.py` (set AKASHA_TEST_LAUNCH_CMD to the binary path). Default
+    # preserves the plain dev-Python launch.
+    launch = os.environ.get("AKASHA_TEST_LAUNCH_CMD")
+    cmd = [launch] if launch else [sys.executable, "server.py"]
+    p = subprocess.Popen(cmd, cwd=BACKEND_DIR, env=env,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(40):
         try:
