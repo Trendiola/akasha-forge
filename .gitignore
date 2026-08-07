@@ -35,6 +35,11 @@ backend/build/
 backend/dist/
 *.spec.bak
 
+# Tauri desktop shell (AF-DESKTOP-006) — build output & bundled sidecar binary
+frontend/src-tauri/target/
+frontend/src-tauri/gen/
+frontend/src-tauri/resources/backend/AkashaForgeBackend/
+
 # Environment files (comprehensive coverage)
 
 *token.json*

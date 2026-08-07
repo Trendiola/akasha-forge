@@ -2,7 +2,7 @@ import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { AppProvider } from "@/store/app-context";
 import { AppShell } from "@/components/layout/AppShell";
-import { isDesktop } from "@/lib/runtime";
+import { isDesktop, getRuntimeConfig } from "@/lib/runtime";
 
 import AkashaCore from "@/modules/akasha-core";
 import AkashaBrain from "@/modules/akasha-brain";
@@ -26,6 +26,24 @@ export default function App() {
   // Packaged desktop shells load over a non-server origin where deep-link
   // refresh needs hash routing; the web preview keeps clean BrowserRouter URLs.
   const Router = isDesktop() ? HashRouter : BrowserRouter;
+
+  // Desktop startup error (AF-DESKTOP-006): if the Tauri shell could not reach
+  // the backend engine, show a clear message instead of a blank window.
+  const startupError = getRuntimeConfig().startupError;
+  if (startupError) {
+    return (
+      <div
+        data-testid="desktop-startup-error"
+        className="min-h-screen flex items-center justify-center bg-[#0a0a0f] text-center px-6"
+      >
+        <div className="max-w-md space-y-3">
+          <h1 className="text-2xl font-semibold text-white">Akasha Forge couldn’t start</h1>
+          <p className="text-sm text-white/60">{startupError}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AppProvider>
       <Router>

@@ -10,6 +10,7 @@ export interface AkashaRuntimeConfig {
   desktop?: boolean;
   backendUrl?: string;
   appDataDir?: string;
+  startupError?: string;
 }
 
 export function getRuntimeConfig(): AkashaRuntimeConfig {
