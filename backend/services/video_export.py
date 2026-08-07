@@ -121,6 +121,80 @@ async def _ordered_completed_clips(project_id: str) -> List[Dict[str, Any]]:
     return ordered
 
 
+def _srt_ts(seconds: float) -> str:
+    ms = int(round(seconds * 1000))
+    h, ms = divmod(ms, 3600000)
+    m, ms = divmod(ms, 60000)
+    s, ms = divmod(ms, 1000)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+async def _build_srt(project_id: str, ordered: List[Dict[str, Any]]) -> str:
+    """Build an SRT from existing shot narration text + clip order/duration."""
+    shots = await db.production_nodes.find(
+        {"project_id": project_id, "type": "shot"}, {"_id": 0}).to_list(10000)
+    shot_by_id = {s["id"]: s for s in shots}
+    cues, clock, idx = [], 0.0, 1
+    for j in ordered:
+        node = shot_by_id.get(j.get("shot_id", ""), {})
+        dur = float(node.get("duration_seconds") or j.get("duration_seconds") or 8)
+        text = (j.get("narration_text") or node.get("narration_text") or "").strip()
+        if text:
+            cues.append(f"{idx}\n{_srt_ts(clock)} --> {_srt_ts(clock + dur)}\n{text}\n")
+            idx += 1
+        clock += dur
+    return "\n".join(cues)
+
+
+async def _store_srt(project_id: str, srt_text: str) -> str:
+    file_id = new_id()
+    path = f"{APP_NAME}/exports/{file_id}.srt"
+    data = srt_text.encode("utf-8")
+    stored = put_object(path, data, "application/x-subrip")
+    record = {
+        "id": file_id, "storage_backend": STORAGE_BACKEND,
+        "storage_path": stored["path"], "relative_path": stored["path"],
+        "original_filename": f"{file_id}.srt", "content_type": "application/x-subrip",
+        "mime_type": "application/x-subrip", "size": stored.get("size", len(data)),
+        "size_bytes": stored.get("size", len(data)), "category": "documents",
+        "project_id": project_id, "kind": "subtitles", "is_deleted": False, "created_at": now_iso(),
+    }
+    await db.files.insert_one(dict(record))
+    return file_id
+
+
+def _mux_audio(video: str, narration: str, music: str, out_path: str) -> None:
+    """Mux narration/music onto the assembled video (video stream copied)."""
+    cmd = [FFMPEG, "-y", "-i", video]
+    if narration:
+        cmd += ["-i", narration]
+    if music:
+        cmd += ["-i", music]
+    if narration and music:
+        # Narration full volume; music ducked so dialogue stays intelligible.
+        cmd += ["-filter_complex",
+                "[2:a]volume=0.25[m];[1:a][m]amix=inputs=2:duration=longest[a]",
+                "-map", "0:v:0", "-map", "[a]"]
+    elif narration:
+        cmd += ["-map", "0:v:0", "-map", "1:a:0"]
+    else:  # music only
+        cmd += ["-filter_complex", "[1:a]volume=0.6[a]", "-map", "0:v:0", "-map", "[a]"]
+    cmd += ["-c:v", "copy", "-c:a", "aac", "-shortest", "-movflags", "+faststart", out_path]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+    if r.returncode != 0 or not os.path.isfile(out_path) or os.path.getsize(out_path) == 0:
+        raise _err(500, "ASSEMBLY_FAILED", "FFmpeg could not mux audio into the movie.",
+                   detail=(r.stderr or "")[-400:])
+
+
+def _mux_subs(video: str, srt: str, out_path: str) -> bool:
+    """Best-effort selectable subtitle track (mov_text). Returns success."""
+    cmd = [FFMPEG, "-y", "-i", video, "-i", srt, "-map", "0", "-map", "1",
+           "-c", "copy", "-c:s", "mov_text", out_path]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    return r.returncode == 0 and os.path.isfile(out_path) and os.path.getsize(out_path) > 0
+
+
+
 def _run_ffmpeg(list_file: str, out_path: str) -> None:
     """Concat via demuxer: try stream copy, fall back to a minimal re-encode."""
     base = [FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", list_file]
@@ -138,7 +212,9 @@ def _run_ffmpeg(list_file: str, out_path: str) -> None:
                    detail=(r2.stderr or r.stderr or "")[-400:])
 
 
-async def assemble_project(project_id: str, output_name: str = "") -> Dict[str, Any]:
+async def assemble_project(project_id: str, output_name: str = "",
+                           narration_asset_id: str = "", music_asset_id: str = "",
+                           subtitles: bool = False) -> Dict[str, Any]:
     project = await db.projects.find_one({"id": project_id}, {"_id": 0})
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -157,9 +233,32 @@ async def assemble_project(project_id: str, output_name: str = "") -> Dict[str, 
             for p in clip_paths:
                 fh.write(f"file '{p}'\n")  # paths only, never user-derived strings
 
-        out_path = os.path.join(workdir, "final.mp4")
+        out_path = os.path.join(workdir, "concat.mp4")
         _run_ffmpeg(list_file, out_path)
 
+        # --- AF-PRODUCTION-001: optional audio mux + subtitles (video-only if none) ---
+        final_media = out_path
+        subtitle_asset_id = ""
+        narration_path = await _local_path_for_asset(narration_asset_id) if narration_asset_id else None
+        music_path = await _local_path_for_asset(music_asset_id) if music_asset_id else None
+        if narration_path or music_path:
+            muxed = os.path.join(workdir, "muxed.mp4")
+            _mux_audio(out_path, narration_path, music_path, muxed)
+            final_media = muxed
+
+        srt_text = ""
+        if subtitles:
+            srt_text = await _build_srt(project_id, ordered)
+            if srt_text.strip():
+                srt_path = os.path.join(workdir, "subs.srt")
+                with open(srt_path, "w", encoding="utf-8") as fh:
+                    fh.write(srt_text)
+                subbed = os.path.join(workdir, "subbed.mp4")
+                if _mux_subs(final_media, srt_path, subbed):
+                    final_media = subbed  # selectable mov_text track
+                subtitle_asset_id = await _store_srt(project_id, srt_text)
+
+        out_path = final_media
         duration = _ffprobe_duration(out_path)
         with open(out_path, "rb") as fh:
             data = fh.read()
@@ -170,6 +269,7 @@ async def assemble_project(project_id: str, output_name: str = "") -> Dict[str, 
         storage_path = f"{APP_NAME}/exports/{file_id}.mp4"
         stored = put_object(storage_path, data, "video/mp4")
 
+        has_audio = bool(narration_path or music_path)
         record = {
             "id": file_id, "storage_backend": STORAGE_BACKEND,
             "storage_path": stored["path"], "relative_path": stored["path"],
@@ -178,7 +278,9 @@ async def assemble_project(project_id: str, output_name: str = "") -> Dict[str, 
             "category": "exports", "project_id": project_id,
             "kind": "final_movie", "clip_count": len(clip_paths),
             "source_render_job_ids": [j["id"] for j in ordered],
-            "duration_seconds": duration, "is_deleted": False, "created_at": now_iso(),
+            "duration_seconds": duration, "has_audio": has_audio,
+            "narration_asset_id": narration_asset_id or "", "music_asset_id": music_asset_id or "",
+            "subtitle_asset_id": subtitle_asset_id, "is_deleted": False, "created_at": now_iso(),
         }
         await db.files.insert_one(dict(record))
 
@@ -186,7 +288,8 @@ async def assemble_project(project_id: str, output_name: str = "") -> Dict[str, 
             "status": "completed", "project_id": project_id, "asset_id": file_id,
             "url": f"/api/files/{file_id}", "filename": filename,
             "duration_seconds": duration, "size": record["size"],
-            "clip_count": len(clip_paths),
+            "clip_count": len(clip_paths), "has_audio": has_audio,
+            "subtitle_asset_id": subtitle_asset_id,
             "clip_asset_ids": [j["result_asset_id"] for j in ordered],  # order for verification
         }
     finally:

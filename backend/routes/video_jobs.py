@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator
 from core import db, new_id, now_iso, logger
 from routes import brain, knowledge_sync
 from services import video_execution, video_export
+from services import production_orchestrator
 import video_adapters
 
 router = APIRouter(prefix="/api", tags=["video"])
@@ -42,6 +43,7 @@ class RenderJob(BaseModel):
     aspect_ratio: str = "16:9"
     status: str = "draft"
     progress: int = 0
+    narration_text: str = ""
     provider_job_id: str = ""
     result_asset_id: str = ""
     error_code: str = ""
@@ -277,6 +279,7 @@ class RenderJobCreate(BaseModel):
     reference_asset_ids: List[str] = Field(default_factory=list)
     duration_seconds: int = 8
     aspect_ratio: str = "16:9"
+    narration_text: str = ""
 
     @field_validator("project_id")
     @classmethod
@@ -300,6 +303,7 @@ class RenderJobUpdate(BaseModel):
     progress: Optional[int] = None
     error_code: Optional[str] = None
     error_message: Optional[str] = None
+    narration_text: Optional[str] = None
 
 
 async def _build_job(payload: dict, provider: Optional[dict]) -> RenderJob:
@@ -311,6 +315,7 @@ async def _build_job(payload: dict, provider: Optional[dict]) -> RenderJob:
         prompt=payload.get("prompt", ""), negative_prompt=payload.get("negative_prompt", ""),
         reference_asset_ids=payload.get("reference_asset_ids", []) or [],
         duration_seconds=payload.get("duration_seconds", 8), aspect_ratio=payload.get("aspect_ratio", "16:9"),
+        narration_text=payload.get("narration_text", ""),
         status="draft",
     )
 
@@ -437,6 +442,28 @@ class VideoExportBody(BaseModel):
 async def export_project_video(body: VideoExportBody):
     """AF-VIDEO-003: assemble a project's completed clips into one final MP4."""
     return await video_export.assemble_project(body.project_id, body.output_name)
+
+
+class ProduceBody(BaseModel):
+    narration_asset_id: str = ""
+    music_asset_id: str = ""
+    subtitles: bool = True
+    auto_export: bool = True
+
+
+@router.post("/video-projects/{project_id}/produce")
+async def produce_project(project_id: str, body: ProduceBody = ProduceBody()):
+    """AF-PRODUCTION-001: advance a project's jobs and finalize the master when ready."""
+    return await production_orchestrator.produce(
+        project_id, narration_asset_id=body.narration_asset_id,
+        music_asset_id=body.music_asset_id, subtitles=body.subtitles,
+        auto_export=body.auto_export)
+
+
+@router.get("/video-projects/{project_id}/production-status")
+async def project_production_status(project_id: str):
+    """AF-PRODUCTION-001: derived production status (no state mutation)."""
+    return await production_orchestrator.get_status(project_id)
 
 
 @router.post("/video-jobs/{job_id}/cancel")
