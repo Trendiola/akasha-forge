@@ -19,8 +19,24 @@ from core import (
     get_object, APP_NAME, STORAGE_BACKEND,
 )
 
-FFMPEG = os.environ.get("AKASHA_FFMPEG", "ffmpeg")
-FFPROBE = os.environ.get("AKASHA_FFPROBE", "ffprobe")
+def _resolve_ffmpeg() -> str:
+    """ffmpeg: env override → system PATH → pip-bundled static binary (survives
+    container resets where apt's ffmpeg is wiped)."""
+    env = os.environ.get("AKASHA_FFMPEG")
+    if env:
+        return env
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return "ffmpeg"
+
+
+FFMPEG = _resolve_ffmpeg()
+FFPROBE = os.environ.get("AKASHA_FFPROBE") or shutil.which("ffprobe") or "ffprobe"
 
 
 def _err(status: int, code: str, message: str, **extra) -> HTTPException:
@@ -218,9 +234,9 @@ async def assemble_project(project_id: str, output_name: str = "",
     project = await db.projects.find_one({"id": project_id}, {"_id": 0})
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    if not (_tool_available(FFMPEG) and _tool_available(FFPROBE)):
+    if not _tool_available(FFMPEG):
         raise _err(503, "FFMPEG_NOT_AVAILABLE",
-                   "FFmpeg/ffprobe is not available. Install FFmpeg or bundle it with the desktop app.")
+                   "FFmpeg is not available. Install FFmpeg or bundle it with the desktop app.")
 
     ordered = await _ordered_completed_clips(project_id)
     clip_paths = [await _local_path_for_asset(j["result_asset_id"]) for j in ordered]

@@ -60,11 +60,47 @@ def has_video_adapter(name: str) -> bool:
 # provider catalog, so it never appears to normal users as a real provider.
 # Real Veo/Kling/Runway are intentionally NOT implemented here.
 # ===========================================================================
-# Tiny deterministic MP4 fixture (valid ftyp box header — enough to store/serve).
-_MP4_FIXTURE = (
+# Tiny deterministic MP4 fixture. When FFmpeg is available (desktop + this env)
+# we lazily build a REAL, concat-safe 1s MP4 so the whole pipeline — including
+# the final-master assembly and playback — can be validated with no paid API.
+# If FFmpeg is missing we fall back to a minimal ftyp-box header (store/serve only).
+_MP4_FALLBACK = (
     b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom"
     b"\x00\x00\x00\x08free" + b"AKASHA_TEST_CLIP\x00" * 4
 )
+_REAL_MP4_CACHE: Dict[str, bytes] = {}
+
+
+def _real_mp4_bytes() -> bytes:
+    """Build once a real, playable, concat-safe MP4 via FFmpeg (cached)."""
+    if "clip" in _REAL_MP4_CACHE:
+        return _REAL_MP4_CACHE["clip"]
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
+    ffmpeg = os.environ.get("AKASHA_FFMPEG") or shutil.which("ffmpeg")
+    if not ffmpeg:
+        try:
+            import imageio_ffmpeg
+            ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            ffmpeg = None
+    data = _MP4_FALLBACK
+    if ffmpeg:
+        try:
+            out = os.path.join(tempfile.mkdtemp(prefix="akasha_test_clip_"), "clip.mp4")
+            subprocess.run(
+                [ffmpeg, "-y", "-f", "lavfi", "-i", "color=c=0x1a1030:s=320x180:d=1:r=24",
+                 "-pix_fmt", "yuv420p", "-c:v", "libx264", "-t", "1", out],
+                check=True, capture_output=True, timeout=30)
+            with open(out, "rb") as fh:
+                data = fh.read()
+        except Exception:  # noqa: BLE001 — fall back to the header fixture
+            data = _MP4_FALLBACK
+    _REAL_MP4_CACHE["clip"] = data
+    return data
 
 # Poll-count state so a stateless get_status can advance deterministically
 # (single-process desktop / test use only).
@@ -118,9 +154,10 @@ class TestVideoAdapter(VideoProviderAdapter):
                 "provider_metadata": {"adapter": "test", "polls": n}}
 
     async def download_result(self, provider_job_id: str) -> Dict[str, Any]:
-        return {"data": _MP4_FIXTURE, "mime_type": "video/mp4",
+        data = _real_mp4_bytes()
+        return {"data": data, "mime_type": "video/mp4",
                 "filename": f"{provider_job_id}.mp4",
-                "provider_metadata": {"adapter": "test", "bytes": len(_MP4_FIXTURE)}}
+                "provider_metadata": {"adapter": "test", "bytes": len(data)}}
 
     async def cancel(self, provider_job_id: str) -> Dict[str, Any]:
         _TEST_POLLS.pop(provider_job_id, None)

@@ -3,6 +3,7 @@ import { getModule } from "@/config/modules";
 import { ProviderRequired } from "@/components/forge/ProviderRequired";
 import { useActiveProject } from "@/features/projects/useActiveProject";
 import { useForgeItems } from "@/features/forge/hooks";
+import { MovieStudio } from "./MovieStudio";
 
 export default function VideoForge() {
   const mod = getModule("video-forge");
@@ -11,6 +12,7 @@ export default function VideoForge() {
   const sceneOptions = scenes.map((s) => ({ value: s.id, label: s.title }));
 
   const tabs: ForgeTab[] = [
+    { id: "studio", label: "Movie Studio", custom: <MovieStudio /> },
     { id: "scenes", label: "Scenes", schema: { kind: "scene", singular: "Scene", titleField: "title", fields: [
       { name: "title", label: "Scene title", type: "text", required: true },
       { name: "description", label: "Description", type: "textarea" },
