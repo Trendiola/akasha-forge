@@ -1,0 +1,51 @@
+name: Build Akasha Forge Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: 'x64'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install Yarn
+        shell: pwsh
+        run: npm install -g yarn@1.22.22
+
+      - name: Build Akasha Forge Windows
+        shell: pwsh
+        run: ./scripts/build_windows.ps1
+
+      - name: Upload NSIS installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Akasha-Forge-Windows-Installer
+          path: frontend/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      - name: Upload portable executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Akasha-Forge-Windows-App
+          path: frontend/src-tauri/target/release/Akasha Forge.exe
+          if-no-files-found: error
