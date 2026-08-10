@@ -1,0 +1,31 @@
+{
+  "summary": "AF-004 Provider Hub — full backend + frontend verification. 13/13 pytest tests pass (categories, catalog=11, seeded catalog names, CRUD with all new fields (default_model/organization_id/notes/last_test_ms), encrypted-masked key, status derivation, test endpoint disabled/ready/short-key error, delete 404). Frontend Playwright E2E: /providers renders module-provider-hub with grid of 14 cards, all 11 catalog providers present (OpenAI, Google Gemini, Anthropic Claude, ElevenLabs, Suno, Runway, Veo, Kling, Fal, Replicate, Stability AI). Add Provider dialog opens, catalog preset (OpenAI) prefills fields, save creates provider that persists after F5. Per-card enable/disable toggle flips label + status badge and persists. Test button shows 'Connected (Nms)' toast when enabled+key configured, disabled message when off. Per-card default-model select persists. Edit dialog prefills correctly and edits persist after F5. Delete removes card and persists after F5. No Forge screens modified/tested (scope respected).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_provider_hub.py",
+    "/app/test_reports/pytest/provider_hub.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "providers_hub.py: /providers/{id}/test derives response_ms via max(1, round(...)); acceptable but response_ms will almost always be 1ms since adapter.validate is pure Python. Fine per mocked-spec.",
+    "seed_providers backfill loop iterates all docs on every startup; low volume so OK, but consider an aggregate + bulk_write for scale.",
+    "modules/provider-hub/index.tsx: ProviderCard's delete button calls del.mutate + toast.success immediately without awaiting or handling error — if delete fails, user still sees success toast. Consider mutateAsync+try/catch (minor UX polish).",
+    "ProviderFormDialog: default category defaults to 'llm' before categories loads; harmless but could set from first category once loaded.",
+    "index.tsx is 287 lines — well within limits."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_provider_hub.py (new — 13 tests, all passing)"
+  ],
+  "success_rate": { "backend": "100% (13/13)", "frontend": "100% (all AF-004 acceptance flows)" },
+  "test_credentials": "N/A (no auth)",
+  "seed_data_creation": "Created TEST_UIProviderAF004 via UI (deleted at end of run). Backend tests create TEST_ProviderAF004 and TEST_ShortKey and clean them up in-class.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Provider Hub AF-004 is signed off. Backend regression at /app/backend/tests/test_provider_hub.py (13 tests). Route /providers (module-provider-hub) renders 14 cards (11 catalog + 3 legacy: Anthropic, Stable Diffusion, DeepL). Test endpoint is LOCAL-only per spec (adapter.validate). Provider IDs are UUIDs; use data-testids listed in the request for automation.",
+  "rca of the issue": "N/A — feature verified working."
+}

@@ -1,0 +1,28 @@
+{
+  "summary": "AF-003 Publish Forge editing fix verified end-to-end. Backend PUT /api/publish/posts/{id} confirmed to do partial $set (untouched fields preserved). Frontend: header '+ New' opens scheduler-dialog in CREATE mode; existing Release rows open scheduler-dialog in EDIT mode with title/content/platforms/scheduled date pre-filled and 'Save changes' label; edits persist immediately and survive F5 reload; delete button stops propagation and does not open the edit dialog. Scope respected — only Publish Forge tested.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_publish_forge_edit.py",
+    "/app/test_reports/pytest/publish_forge_edit.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PublishPro.tsx (238 lines) is fine size-wise. SchedulerDialog resets local state via useEffect on `open` transition — correct. openEdit sets editing then opens; safe.",
+    "Consider clearing `editing` state on dialog close in PublishingQueue so next '+ New post' from within queue always starts fresh (currently openNew explicitly sets editing=null, so OK).",
+    "PublishCalendar's SchedulerDialog does not receive an `editing` prop — day-click always creates. This is intended per spec (edit is from Releases rows) but worth noting."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_publish_forge_edit.py (new)"
+  ],
+  "success_rate": { "backend": "100% (4/4)", "frontend": "100% (all acceptance flows)" },
+  "seed_data_creation": "Created TEST_UI_HeaderCreate post via UI and cleaned up via delete button at end. Backend test also cleans up any TEST_ prefixed posts.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Publish Forge AF-003 signed off. Header '+ New' -> scheduler-dialog (CREATE) works; row-click -> scheduler-dialog (EDIT) pre-fills correctly; PUT partial update preserves status/campaign_id; F5 persistence verified; delete stopPropagation verified. Backend regression at /app/backend/tests/test_publish_forge_edit.py.",
+  "rca of the issue": "N/A — fix verified working."
+}

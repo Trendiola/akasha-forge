@@ -1,0 +1,26 @@
+{
+  "summary": "Targeted bug-fix validation for Create Project workflow (404 regression). Verified backend POST /api/projects returns 200 with an id, GET lists the project (persistence), DELETE cleans up. Verified the frontend UI flow end-to-end via Playwright against the public REACT_APP_BACKEND_URL: opened Project Selector -> 'New project', empty-name submit shows 'Project name is required' (no React runtime error), filled name/description and submitted -> POST /api/projects returned 200, success toast 'TEST_ui_create created' displayed, app navigated to '/', new project became active in the top-bar selector and appeared in Recent projects. No 404 observed.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_v2_extensions.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Consider persisting an 'is_active' flag server-side or exposing an /api/projects/active endpoint; currently active project is only client-side state.",
+    "CreateProjectDialog does not appear to clear/reset form fields after successful create; low priority."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "None (no auth required)",
+  "seed_data_creation": "Created 2 TEST_ projects during testing (TEST_bugfix via curl, TEST_ui_create via UI). Both deleted via DELETE /api/projects/{id}.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bug fix verified. REACT_APP_BACKEND_URL=https://forge-studio-core.preview.emergentagent.com is correctly used by the running frontend. Create Project flow (top-bar selector -> new-project-menu-item -> project-submit-btn) works: POST returns 200, toast shown, navigates to '/', selector updates. Empty name validation works.",
+  "rca of the issue": "Root cause was a stale REACT_APP_BACKEND_URL baked into the previously-running dev bundle after the preview URL changed. Fix by main agent (restart frontend + hardened CreateProjectDialog with try/catch, id validation, and navigate('/')) is effective. Reproduction now impossible: network log shows POST going to the current REACT_APP_BACKEND_URL and receiving 200."
+}

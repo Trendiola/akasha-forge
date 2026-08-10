@@ -1,0 +1,35 @@
+{
+  "summary": "V2 extension testing: Character Consistency Engine, Project Bibles, Provider Hub, Akasha Brain (real Claude Sonnet 4.6 via Emergent key), Scene Production, Publish Forge Pro, Image Forge editing UI, Files upload/serve. Backend: 10/10 pytest tests passed in /app/backend/tests/test_v2_extensions.py including character version bump + snapshot + restore (v increments), 7 bible types + world bible persist round-trip + filled flag, provider api_key encrypted-masked (raw never returned) + test transitions (ready/disabled/not_configured), custom provider create+delete, brain/status returns anthropic/claude-sonnet-4-6 online=true, real /brain/optimize returns non-empty LLM output, production tree nesting + cascade delete, publish campaign+post CRUD, image /operations returns 5 ops with error status when no enabled provider and queued after enabling, file upload returns id+url and served with image/* content-type. Frontend: E2E in a single browser session — created project via top-bar ProjectSelector, Character Forge: created character, toggled Appearance Lock, added palette color, added outfit + memory rows, saved (v2), snapshot (v3 row appeared in History tab). Provider Hub: 8 seeded rows visible, configure dialog saves masked key, enable + test transitions, add-provider dialog creates custom. Akasha Brain: Command Center displays claude-sonnet-4-6 + Online + 3/9 providers + per-category counts; Prompt Optimizer produced non-empty optimized text; Assistant returned a reply. Story Forge bible editor: added a section, Save persisted, after full reload the section still present. Video Forge Timeline: created Act I, then Chapter 1 nested under it (2 nodes). Publish Forge: Channels tab created a TEST campaign; Releases tab created a scheduled post (queue-post-row visible); Schedule tab renders publish-calendar. Image Forge: uploaded 1x1 PNG, selected Upscaling operation, Run created an image-job-row (status error as expected — no enabled image provider by default, with helpful toast 'No enabled image provider').",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_v2_extensions.py",
+    "/app/test_reports/pytest/v2_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "characters.py: snapshot_character/restore_version don't require a project_id filter — any client with a character_id can snapshot/restore across projects. Low-risk for MVP (no auth), but consider scoping to project_id.",
+    "characters.py: update_character bumps version on every PUT, including no-op UI saves. Consider bumping only when non-metadata fields actually change to keep version numbers meaningful.",
+    "brain.py: _llm uses HTTPException 502 on any exception; consider logging exc details server-side (currently only the message is surfaced, which may leak model provider errors to clients).",
+    "image_edit.py: create_job accepts any string as source_file_id without validating that the file record exists (e.g. 'fakefile' is accepted). Recommend verifying db.files record before queuing.",
+    "publish.py: PLATFORMS list is defined but there's no server-side validation that Post.platforms are within PLATFORMS — invalid platform strings silently persist.",
+    "providers_hub.py: ProviderAdapter.validate is a stub for all categories; the LOCAL-only design is intentional per the brief but every category currently shares the same 12-char length heuristic — categories like ElevenLabs/DeepL have distinct key shapes that could be validated later.",
+    "server.py: project delete cascades characters/bibles/production_nodes/image_jobs but NOT character_versions — orphaned version snapshots will remain when a project (and its characters) are deleted via project cascade. Recommend joining on character_id via project scope, or storing project_id on character_versions.",
+    "core.py: init_storage stores _storage_key in a module-level global — safe for single-process supervisor but not for future multi-worker deployments; consider a small TTL cache or re-init on 401/404 (partially handled with 404 already).",
+    "core.py: put_object/get_object use synchronous `requests` from within async FastAPI handlers (files.py). This blocks the event loop under load; consider httpx.AsyncClient or fastapi.concurrency.run_in_threadpool."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v2_extensions.py"
+  ],
+  "success_rate": {"backend": "100% (10/10 V2 + previously 7/7 V1)", "frontend": "100%"},
+  "test_credentials": "N/A (no auth)",
+  "seed_data_creation": "All test data cleaned up: TEST_UI_V2, TEST_UI_Final projects deleted; TEST_Camp/TEST_UICamp campaigns + TEST_ posts + TEST_Custom/TEST_NoKey providers removed via API. Any provider api_key set during UI testing on the first LLM provider (Anthropic/OpenAI etc.) remains encrypted+configured — non-destructive and masked in responses.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "V2 backend suite lives at /app/backend/tests/test_v2_extensions.py — reuse. Run with `REACT_APP_BACKEND_URL=<url> pytest`. Frontend project state is per-browser-session (activeProject in localStorage) — always create a project in the SAME session before testing Character/Story/World/Video Forge, otherwise those modules show 'Select a project' empty states. Publish Forge tabs: Channels=CampaignManager, Releases=PublishingQueue (queue-new-post lives here), Schedule=PublishCalendar. Video Forge Timeline tab holds the production-board with production-add-act (then production-add-chapter appears under each act row). Image Forge run-btn is disabled until a source image is uploaded via the hidden file input (image-upload-btn triggers it). No enabled image provider is seeded by default so image jobs create in status=error until Provider Hub enables one. Akasha Brain Command Center needs ~1-2s after navigation for the brain-status query to resolve — wait before asserting on 'Online'."
+}

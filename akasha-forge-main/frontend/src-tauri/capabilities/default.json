@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capability for the Akasha Forge main window. The shell creates its window and spawns the backend from Rust, so no JS-invoked plugin commands are exposed.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

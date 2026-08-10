@@ -1,0 +1,41 @@
+{
+  "summary": "Frontend E2E tested Movie Studio in Video Forge. Movie Studio is correctly the first tab and the other three tabs (Scenes/Shots/Render Queue) still open (no regression). Plan generation, Generate Render Jobs, Produce Movie, and the per-shot progress UI all work — 3/3 shots reached Completed status (100%). HOWEVER two blocking issues prevent the full flow from completing: (1) Backend container is MISSING FFmpeg/ffprobe so the final master MP4 can never be assembled — status stays at 'ready_for_export' with final_asset_id='' forever, so the Final Master card / <video> / Download MP4 never appear. (2) Frontend caching bug in usePlanVideo — after clicking Generate Plan the Production Plan card does NOT appear until a full page reload (the plan is persisted server-side; the React Query cache for production-nodes is never invalidated). A related runner bug: useProduceRunner only stops on 'completed/failed/empty', so when the backend gets stuck at 'ready_for_export' the frontend polls /produce indefinitely and the button is locked on 'Producing…'. Persistence check partially confirmed — plan and jobs are restored on reload, but Final Master cannot be verified because it was never assembled.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/video-projects/{id}/produce", "issue": "Backend cannot assemble final master because FFmpeg/ffprobe is not installed in the container (`which ffmpeg` -> not found). Production status stays at 'ready_for_export', final_asset_id remains empty, UI is blocked on 'Producing…'. Task note claimed 'TEST adapter emits a real playable MP4 so the final master assembles' — this is not true in this container. Either install ffmpeg (apt-get install -y ffmpeg) or make the TEST adapter's final-master path ffmpeg-free (write a pre-baked MP4 as the final asset when kind=test).", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/video-projects/{id}/production-status", "issue": "When ffmpeg is missing, the produce warning ('FFmpeg/ffprobe is not available…') is shown in the UI errors area but production-status.errors is []. The blocking condition should be surfaced in errors[] and/or status should transition to 'failed' so clients can stop polling."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MovieStudio / usePlanVideo", "issue": "After clicking Generate Plan (POST /video-projects/plan returns 200 with shots persisted), the Production Plan card does not appear. React Query cache for ['production-nodes', projectId] is never invalidated by usePlanVideo, so `shots` stays empty and `hasPlan` stays false. Card only appears after a full page reload.", "selector": "[data-testid=movie-studio-plan]", "priority": "HIGH"},
+      {"component": "useProduceRunner", "issue": "TERMINAL_STATUSES = {'completed','failed','empty'} — does not include 'ready_for_export'. When the backend is stuck at ready_for_export (e.g., ffmpeg missing) the runner loop polls POST /produce forever (~ every 1.2s) and the Produce Movie button stays locked at 'Producing…' with no way for the user to escape. Should stop when progress=100 and errors present, or treat prolonged ready_for_export as a blocked state.", "selector": "[data-testid=movie-studio-produce-btn]", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Prompt → Plan → Jobs → Produce → Final Master", "issue": "Flow reaches 100% Completed for all 3 shots but Final Master card (movie-studio-final), <video> (movie-studio-video) and Download MP4 (movie-studio-download) never render because backend cannot assemble final MP4 (ffmpeg missing). Waited >2 min.", "affected_selectors": ["[data-testid=movie-studio-final]", "[data-testid=movie-studio-video]", "[data-testid=movie-studio-download]"]},
+      {"flow": "Persistence after reload", "issue": "Plan + job list ARE restored on reload (confirmed). Final Master could not be verified on reload because it was never produced due to the ffmpeg issue above."}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "CRITICAL: Install ffmpeg/ffprobe in the container (apt-get install -y ffmpeg) OR change the TEST video provider's assembly path to be ffmpeg-free (return a pre-baked MP4 file as the final asset when provider.kind='test'). Without this the entire Movie Studio flow cannot complete end-to-end.",
+    "HIGH: In /app/frontend/src/features/video/hooks.ts, add onSuccess invalidation to usePlanVideo to invalidate ['production-nodes', project_id] and ['production-status', project_id] so the Plan card appears immediately after Generate Plan (currently requires manual reload).",
+    "HIGH: In useProduceRunner, break out of the polling loop when status='ready_for_export' with no forward progress after N attempts, or expose a Stop/Cancel action so the button doesn't stay locked in 'Producing…' forever.",
+    "MEDIUM: When ffmpeg (or any assembly dependency) is missing, backend should populate production-status.errors[] and/or transition status to 'failed' so clients stop polling and surface the issue via movie-studio-errors."
+  ],
+  "critical_code_review_comments": [
+    "usePlanVideo has no cache invalidation — mutation success is not propagated to production-nodes query (see hooks.ts lines 60-65).",
+    "useProduceRunner terminal state set is incomplete — 'ready_for_export' should either be terminal-with-error or trigger an assembly-retry with backoff/limit (hooks.ts lines 58 & 165-181).",
+    "Backend produce pipeline has a hard runtime dependency on ffmpeg that is not documented in requirements.txt or the container image — either bundle it or gracefully fail the whole job and mark status=failed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only mandate; but backend blocked by missing ffmpeg during e2e)", "frontend": "60% (plan+jobs+progress+regression tabs OK; plan cache-invalidation bug, produce-loop bug, and final-master step BLOCKED)"},
+  "seed_data_creation": "Reused active project 8c6962fe-8be5-48e0-994d-a9938f149b83 (‘Movie Studio Demo’). A plan (1 act, 3 scenes, 3 shots) was created; 3 render jobs were generated and all completed via the TEST provider.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The plan (3 shots) and jobs are already persisted on project 8c6962fe-8be5-48e0-994d-a9938f149b83 and all 3 jobs are in status=completed; production-status endpoint returns status='ready_for_export' with final_asset_id=''. To retest the Final Master step after E1's fix, either (a) call POST /api/video-projects/{id}/produce once and expect status→'completed' with a non-empty final_asset_id, then visit /video and expect movie-studio-final + movie-studio-video to render, OR (b) reset the project's jobs/final_asset to re-run the whole flow. Local ffmpeg check: `which ffmpeg` currently returns not found. Movie Studio is the first tab (id 'studio') and the other three ForgeWorkspace tabs (scenes/shots/renders) still open cleanly.",
+  "rca of the issue": "Root cause of Final Master not appearing: the backend produce/assembly step shells out to ffmpeg (and probes with ffprobe) to concatenate the per-shot MP4s into the final master, but the container has no ffmpeg binary installed. The produce endpoint therefore keeps returning status='ready_for_export' (all shots completed, but ready to export not yet exported) and never populates final_asset_id. On the frontend, useProduceRunner treats only {completed,failed,empty} as terminal, so it polls indefinitely, keeping the Produce button stuck. Reproduction: with active project = 8c6962fe-8be5-48e0-994d-a9938f149b83, load /video, click Generate Plan (works but requires reload — see separate bug), Generate Render Jobs (works), Produce Movie — observe stat chips going Total=3/Completed=3 within ~4s but Final Master card never appears; `GET /api/video-projects/{id}/production-status` shows status='ready_for_export', final_asset_id=''. Mitigation: install ffmpeg (`apt-get install -y ffmpeg && supervisorctl restart backend`) OR make TEST-kind provider's assembly step ffmpeg-free by outputting a static bundled MP4 as final_asset. Additionally fix usePlanVideo cache-invalidation and expand useProduceRunner terminal handling."
+}

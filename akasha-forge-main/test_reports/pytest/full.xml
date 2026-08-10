@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="3" failures="7" skipped="0" tests="45" time="10.063" timestamp="2026-08-05T18:03:45.188956+00:00" hostname="agent-env-eef3156a-7d17-40ce-afa2-023b7fa9bca7"><testcase classname="tests.test_v2_extensions" name="test_character_lifecycle" time="0.001"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/projects': No scheme supplied. Perhaps you meant https:///api/projects?&quot;">backend/tests/test_v2_extensions.py:19: in project
+    r = s.post(f"{API}/projects", json={"name": "TEST_V2_Project", "type": "story"})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:712: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:635: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:541: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:439: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:514: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/projects': No scheme supplied. Perhaps you meant https:///api/projects?</error></testcase><testcase classname="tests.test_v2_extensions" name="test_bible_types" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/bible-types': No scheme supplied. Perhaps you meant https:///api/bible-types?">backend/tests/test_v2_extensions.py:73: in test_bible_types
+    r = s.get(f"{API}/bible-types")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:671: in get
+    return self.request("GET", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:635: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:541: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:439: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:514: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/bible-types': No scheme supplied. Perhaps you meant https:///api/bible-types?</failure></testcase><testcase classname="tests.test_v2_extensions" name="test_bible_persistence" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/projects': No scheme supplied. Perhaps you meant https:///api/projects?&quot;">backend/tests/test_v2_extensions.py:19: in project
+    r = s.post(f"{API}/projects", json={"name": "TEST_V2_Project", "type": "story"})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:712: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:635: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:541: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:439: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:514: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/projects': No scheme supplied. Perhaps you meant https:///api/projects?</error></testcase><testcase classname="tests.test_v2_extensions" name="test_provider_masking_and_test" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/providers': No scheme supplied. Perhaps you meant https:///api/providers?">backend/tests/test_v2_extensions.py:102: in test_provider_masking_and_test
+    r = s.get(f"{API}/providers", params={"category": "llm"})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:671: in get
+    return self.request("GET", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:635: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:541: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:439: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:514: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/providers': No scheme supplied. Perhaps you meant https:///api/providers?</failure></testcase><testcase classname="tests.test_v2_extensions" name="test_brain_status" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/brain/status': No scheme supplied. Perhaps you meant https:///api/brain/status?">backend/tests/test_v2_extensions.py:144: in test_brain_status
+    r = s.get(f"{API}/brain/status")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:671: in get
+    return self.request("GET", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:635: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:541: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:439: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:514: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/brain/status': No scheme supplied. Perhaps you meant https:///api/brain/status?</failure></testcase><testcase classname="tests.test_v2_extensions" name="test_brain_optimize" time="0.000"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/brain/optimize': No scheme supplied. Perhaps you meant https:///api/brain/optimize?">backend/tests/test_v2_extensions.py:154: in test_brain_optimize
+    r = s.post(f"{API}/brain/optimize",
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:712: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:635: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:541: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:439: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:514: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/brain/optimize': No scheme supplied. Perhaps you meant https:///api/brain/optimize?</failure></testcase><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[story-chapter-data0]" time="1.079" /><testcase classname="tests.test_v2_extensions" name="test_production_tree_and_cascade" time="0.000"><error message="failed on setup with &quot;requests.exceptions.MissingSchema: Invalid URL '/api/projects': No scheme supplied. Perhaps you meant https:///api/projects?&quot;">backend/tests/test_v2_extensions.py:19: in project
+    r = s.post(f"{API}/projects", json={"name": "TEST_V2_Project", "type": "story"})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:712: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:635: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:541: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:439: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:514: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/projects': No scheme supplied. Perhaps you meant https:///api/projects?</error></testcase><testcase classname="tests.test_v2_extensions" name="test_publish_flow" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/publish/campaigns': No scheme supplied. Perhaps you meant https:///api/publish/campaigns?">backend/tests/test_v2_extensions.py:194: in test_publish_flow
+    r = s.post(f"{API}/publish/campaigns", json={"name": "TEST_Camp"})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:712: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:635: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:541: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:439: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:514: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/publish/campaigns': No scheme supplied. Perhaps you meant https:///api/publish/campaigns?</failure></testcase><testcase classname="tests.test_v2_extensions" name="test_image_operations_and_job" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/image/operations': No scheme supplied. Perhaps you meant https:///api/image/operations?">backend/tests/test_v2_extensions.py:218: in test_image_operations_and_job
+    r = s.get(f"{API}/image/operations")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:671: in get
+    return self.request("GET", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:635: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:541: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:439: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:514: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/image/operations': No scheme supplied. Perhaps you meant https:///api/image/operations?</failure></testcase><testcase classname="tests.test_v2_extensions" name="test_file_upload_and_serve" time="0.001"><failure message="requests.exceptions.MissingSchema: Invalid URL '/api/files/upload': No scheme supplied. Perhaps you meant https:///api/files/upload?">backend/tests/test_v2_extensions.py:255: in test_file_upload_and_serve
+    r = s.post(f"{API}/files/upload", files=files, data={"category": "test"})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:712: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:635: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:541: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:439: in prepare
+    self.prepare_url(url, params)
+/root/.venv/lib/python3.11/site-packages/requests/models.py:514: in prepare_url
+    raise MissingSchema(
+E   requests.exceptions.MissingSchema: Invalid URL '/api/files/upload': No scheme supplied. Perhaps you meant https:///api/files/upload?</failure></testcase><testcase classname="tests.backend_test" name="test_root" time="0.193" /><testcase classname="tests.backend_test" name="test_providers_seeded" time="0.164" /><testcase classname="tests.backend_test" name="test_providers_filter_llm" time="0.076" /><testcase classname="tests.backend_test" name="test_provider_toggle_and_default" time="0.319" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[story-draft-data1]" time="0.574" /><testcase classname="tests.backend_test" name="test_projects_crud" time="0.607" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[story-beat-data2]" time="0.646" /><testcase classname="tests.backend_test" name="test_settings_get" time="0.081" /><testcase classname="tests.backend_test" name="test_settings_partial_update" time="0.291" /><testcase classname="tests.test_sprint_creation_endpoints" name="test_create_character_returns_200_and_persists" time="0.382" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[world-location-data3]" time="0.581" /><testcase classname="tests.test_sprint_creation_endpoints" name="test_create_workflow_returns_200_and_persists" time="0.372" /><testcase classname="tests.test_sprint_creation_endpoints" name="test_create_campaign_returns_200_and_persists" time="0.253" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[world-faction-data4]" time="0.696" /><testcase classname="tests.test_sprint_creation_endpoints" name="test_create_post_returns_200_and_persists" time="0.513" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[world-rule-data5]" time="0.595" /><testcase classname="tests.test_sprint_creation_endpoints" name="test_create_post_minimal_fields" time="0.179" /><testcase classname="tests.test_sprint_creation_endpoints" name="test_create_character_minimal" time="0.143" /><testcase classname="tests.test_sprint_creation_endpoints" name="test_create_character_missing_name_returns_422" time="0.185" /><testcase classname="tests.test_forge_items.TestForgeEdgeCases" name="test_update_nonexistent" time="0.198" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[world-timeline-data6]" time="0.708" /><testcase classname="tests.test_forge_items.TestForgeEdgeCases" name="test_delete_nonexistent" time="0.072" /><testcase classname="tests.test_forge_items.TestForgeEdgeCases" name="test_update_empty_body" time="0.288" /><testcase classname="tests.test_forge_items.TestForgeEdgeCases" name="test_list_filtered_by_kind" time="0.262" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[video-scene-data7]" time="0.646" /><testcase classname="tests.test_forge_items.TestCascadeDelete" name="test_deleting_project_cascades_forge_items" time="0.365" /><testcase classname="tests.test_forge_items.TestCharacterAIPrompt" name="test_create_character_with_ai_prompt" time="0.386" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[video-shot-data8]" time="0.592" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[video-render-data9]" time="0.534" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[voice-profile-data10]" time="0.542" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[music-brief-data11]" time="0.566" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[image-gallery-data12]" time="0.646" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[image-asset-data13]" time="0.560" /><testcase classname="tests.test_forge_items.TestForgeCRUD" name="test_create_list_update_delete[workflow-graph-data14]" time="0.606" /></testsuite></testsuites>

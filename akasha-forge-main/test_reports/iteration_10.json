@@ -1,0 +1,18 @@
+{
+  "summary": "Frontend RETEST of Movie Studio (Video Forge) — all previously-reported HIGH issues are FIXED. Full end-to-end flow now succeeds on project 8c6962fe-8be5-48e0-994d-a9938f149b83 (Movie Studio Demo). Movie Studio is the first tab; Scenes/Shots/Render Queue tabs still open with no regression. Generate Plan (target=24, clip=8) renders the Production Plan card IMMEDIATELY without a page reload (~12s including backend call). Generate Render Jobs renders Production card + per-shot job list. Produce Movie drives the produce loop from the frontend; stat chips update from Total=3 to Completed=3 and the Final Master card appears within ~32s. The <video> element has src=/api/files/f61f9254-149a-42a1-ab66-1904294a71c6 which returns HTTP 200 with content-type=video/mp4, and a Download MP4 button is present. The Produce button transitions from 'Producing…' to 'Movie Ready' (no longer stuck). Persistence verified: after full page reload the plan, jobs, Final Master card and <video> src are all restored from backend without re-running anything. Regression: switching to Scenes, Shots, Render Queue tabs works and returning to Movie Studio still shows the completed final master.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Generate Plan silently no-ops when Video idea textarea is empty (no visible validation feedback / no toast). Minor UX polish — consider disabling the button or showing an inline error when idea is empty.",
+    "Console logged only benign warnings during the run; no errors observed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only mandate; backend healthy — ffmpeg present, /api/files serves video/mp4 200)", "frontend": "100% (plan card immediate, jobs, produce loop terminates at Movie Ready in ~32s, final <video> plays, download btn present, persistence + regression OK)"},
+  "seed_data_creation": "Reused active project 8c6962fe-8be5-48e0-994d-a9938f149b83. Created plan (3 scenes / 3 shots), 3 render jobs (all completed via TEST provider), and final master asset f61f9254-149a-42a1-ab66-1904294a71c6 (video/mp4).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All fixes verified. Project 8c6962fe-8be5-48e0-994d-a9938f149b83 now has a completed final master. To rerun a clean flow, reset the project first (POST reset endpoint) since replay currently just reuses cached final asset.",
+  "rca of the issue": "N/A — previous HIGH issues (usePlanVideo cache invalidation, useProduceRunner terminal states, ffmpeg missing) are all resolved as designed."
+}
