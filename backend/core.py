@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 
 import requests
 from dotenv import load_dotenv
-from motor.motor_asyncio import AsyncIOMotorClient
 from cryptography.fernet import Fernet
 
 ROOT_DIR = Path(__file__).parent
@@ -27,6 +26,8 @@ if AKASHA_DB_BACKEND == "local":
     from mongo_compat import make_local_db
     client, db = make_local_db(AKASHA_DATA_DIR, os.environ.get("DB_NAME", "akasha_forge"))
 else:
+    from motor.motor_asyncio import AsyncIOMotorClient
+
     mongo_url = os.environ["MONGO_URL"]
     client = AsyncIOMotorClient(mongo_url)
     db = client[os.environ["DB_NAME"]]
