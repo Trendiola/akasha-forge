@@ -8,12 +8,6 @@ One-dir freeze of the FastAPI backend into a standalone sidecar. Produces:
 Windows-ready: run `pyinstaller build.spec` from a Windows shell (see
 BUILD_DESKTOP.md) to emit AkashaForgeBackend.exe. PyInstaller does NOT
 cross-compile, so the target .exe must be built on Windows.
-
-One-dir (not one-file) is chosen deliberately: this dependency graph
-(pydantic_core, cryptography, uvicorn protocol/loop plugins, montydb) is far
-more reliable un-archived, avoids the one-file temp-extraction startup cost,
-and keeps the executable directory read-only-friendly (all mutable data lives
-under AKASHA_DATA_DIR, never beside the binary).
 """
 import os
 
@@ -40,7 +34,7 @@ def _add(pkg, metadata=False):
         print(f"[build.spec] WARN could not collect {pkg}: {exc}")
 
 
-# --- Core runtime (must be present for the backend to run) ---
+# --- Core runtime ---
 for _pkg in (
     "fastapi",
     "starlette",
@@ -51,20 +45,40 @@ for _pkg in (
     "pydantic",
     "pydantic_core",
     "email_validator",
-    "multipart",          # python-multipart (form/file uploads)
-    "cryptography",       # Fernet encryption for provider keys
-    "montydb",            # local SQLite-backed DB (desktop offline mode)
+    "multipart",
+    "cryptography",
     "pymongo",
     "bson",
-    "motor",              # remote MongoDB mode (dev/preview parity)
     "dotenv",
     "requests",
     "certifi",
     "urllib3",
     "charset_normalizer",
     "idna",
+    "imageio_ffmpeg",
 ):
     _add(_pkg)
+
+# Desktop DB is not optional. Force every MontyDB submodule into the frozen
+# backend because mongo_compat imports MontyDB lazily at runtime. A best-effort
+# collect is insufficient on Windows: PyInstaller can otherwise build an exe
+# that starts but crashes with ModuleNotFoundError: montydb.
+try:
+    _monty_hidden = collect_submodules("montydb")
+    if not _monty_hidden:
+        raise RuntimeError("collect_submodules('montydb') returned no modules")
+    hiddenimports += _monty_hidden
+    _add("montydb")
+except Exception as exc:
+    raise RuntimeError(f"MontyDB is required for the desktop build but could not be collected: {exc}")
+
+# Remote MongoDB remains supported. Force motor submodules too so remote mode
+# does not depend on PyInstaller discovering the lazy import in core.py.
+try:
+    hiddenimports += collect_submodules("motor")
+    _add("motor")
+except Exception as exc:
+    raise RuntimeError(f"Motor is required for remote-mode parity but could not be collected: {exc}")
 
 # uvicorn loads its protocol/loop implementations dynamically.
 hiddenimports += collect_submodules("uvicorn")
@@ -79,22 +93,16 @@ hiddenimports += [
     "uvicorn.lifespan.on",
 ]
 
-# --- Application modules (routes are imported dynamically via `from routes import ...`) ---
+# --- Application modules ---
 hiddenimports += collect_submodules("routes")
 hiddenimports += collect_submodules("services")
 hiddenimports += ["core", "mongo_compat", "video_adapters", "secret_vault", "services.video_execution"]
 
-# --- Optional LLM stack (Akasha Brain optimise/assist — lazily imported) ---
-# Included for a complete desktop build; not required by the smoke tests. Wrapped
-# best-effort so a heavy/edge litellm dependency never hard-fails the freeze.
+# --- Optional LLM stack ---
 for _pkg in ("emergentintegrations", "litellm"):
     _add(_pkg, metadata=True)
 
-# --- Secret vault (AF-DESKTOP-007) ---
-# keyring + its OS backends load dynamically; bundle them so the frozen backend
-# can reach Windows Credential Manager (DPAPI) at runtime. Non-Windows backends
-# are harmless extras. copy_metadata is required for keyring's entry-point
-# backend discovery.
+# --- Secret vault ---
 for _pkg in ("keyring", "jaraco"):
     _add(_pkg, metadata=True)
 hiddenimports += collect_submodules("keyring")
@@ -121,23 +129,9 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=["pyinstaller_runtime_hook.py"],
     excludes=[
-        # Confirmed unused at runtime — trimmed for a leaner, more reliable freeze.
-        "pandas",
-        "numpy",
-        "boto3",
-        "botocore",
-        "matplotlib",
-        "scipy",
-        "PIL",
-        "tkinter",
-        "pytest",
-        "_pytest",
-        "black",
-        "mypy",
-        "flake8",
-        "isort",
-        "IPython",
-        "notebook",
+        "pandas", "numpy", "boto3", "botocore", "matplotlib", "scipy",
+        "PIL", "tkinter", "pytest", "_pytest", "black", "mypy", "flake8",
+        "isort", "IPython", "notebook",
     ],
     noarchive=False,
     optimize=0,
