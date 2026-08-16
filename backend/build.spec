@@ -1,13 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 """AF-DESKTOP-005 — Reproducible PyInstaller build for the Akasha Forge backend.
 
-One-dir freeze of the FastAPI backend into a standalone sidecar. Produces:
-  dist/AkashaForgeBackend/AkashaForgeBackend      (Linux/macOS)
-  dist/AkashaForgeBackend/AkashaForgeBackend.exe  (Windows)
-
-Windows-ready: run `pyinstaller build.spec` from a Windows shell (see
-BUILD_DESKTOP.md) to emit AkashaForgeBackend.exe. PyInstaller does NOT
-cross-compile, so the target .exe must be built on Windows.
+The Windows build deliberately keeps the desktop DB stack (MontyDB/PyMongo/
+Motor) in a private `_vendor` directory beside the frozen executable. The
+runtime hook adds that directory to sys.path before application imports. This
+avoids PyInstaller trying to discover packages installed only in the vendor
+tree and makes the packaged backend deterministic.
 """
 import os
 
@@ -21,7 +19,7 @@ hiddenimports = []
 
 
 def _add(pkg, metadata=False):
-    """Best-effort collect a package's submodules, data and binaries."""
+    """Best-effort collect a package installed in the PyInstaller venv."""
     try:
         d, b, h = collect_all(pkg)
         datas.extend(d)
@@ -35,6 +33,9 @@ def _add(pkg, metadata=False):
 
 
 # --- Core runtime ---
+# DB drivers are intentionally NOT collected here. build_windows.ps1 creates
+# backend/_vendor_runtime and later copies it beside AkashaForgeBackend.exe as
+# `_vendor`; pyinstaller_runtime_hook.py prepends that directory to sys.path.
 for _pkg in (
     "fastapi",
     "starlette",
@@ -47,8 +48,6 @@ for _pkg in (
     "email_validator",
     "multipart",
     "cryptography",
-    "pymongo",
-    "bson",
     "dotenv",
     "requests",
     "certifi",
@@ -58,27 +57,6 @@ for _pkg in (
     "imageio_ffmpeg",
 ):
     _add(_pkg)
-
-# Desktop DB is not optional. Force every MontyDB submodule into the frozen
-# backend because mongo_compat imports MontyDB lazily at runtime. A best-effort
-# collect is insufficient on Windows: PyInstaller can otherwise build an exe
-# that starts but crashes with ModuleNotFoundError: montydb.
-try:
-    _monty_hidden = collect_submodules("montydb")
-    if not _monty_hidden:
-        raise RuntimeError("collect_submodules('montydb') returned no modules")
-    hiddenimports += _monty_hidden
-    _add("montydb")
-except Exception as exc:
-    raise RuntimeError(f"MontyDB is required for the desktop build but could not be collected: {exc}")
-
-# Remote MongoDB remains supported. Force motor submodules too so remote mode
-# does not depend on PyInstaller discovering the lazy import in core.py.
-try:
-    hiddenimports += collect_submodules("motor")
-    _add("motor")
-except Exception as exc:
-    raise RuntimeError(f"Motor is required for remote-mode parity but could not be collected: {exc}")
 
 # uvicorn loads its protocol/loop implementations dynamically.
 hiddenimports += collect_submodules("uvicorn")
@@ -132,6 +110,8 @@ a = Analysis(
         "pandas", "numpy", "boto3", "botocore", "matplotlib", "scipy",
         "PIL", "tkinter", "pytest", "_pytest", "black", "mypy", "flake8",
         "isort", "IPython", "notebook",
+        # These are supplied by the external `_vendor` runtime tree.
+        "montydb", "pymongo", "bson", "motor", "dns",
     ],
     noarchive=False,
     optimize=0,
