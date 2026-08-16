@@ -19,9 +19,32 @@ ICONS = TAURI_DIR / "icons"
 APP_ICON = TAURI_DIR / "app-icon.png"
 
 
+def _decode_brand_asset() -> bytes:
+    """Decode the repository branding payload and validate it before Pillow sees it.
+
+    The original repository payload is a raw JPEG byte stream encoded as base64
+    without the JPEG SOI marker. Restore that marker deterministically instead of
+    allowing Pillow to fail with an opaque UnidentifiedImageError.
+    """
+    text = "".join(SOURCE_B64.read_text(encoding="utf-8").split())
+    raw = base64.b64decode(text, validate=True)
+
+    # Normal JPEG files begin FF D8 FF. The checked-in payload starts immediately
+    # after the SOI marker, so restore FF D8 when necessary.
+    if not raw.startswith(b"\xff\xd8"):
+        raw = b"\xff\xd8" + raw
+
+    if not raw.startswith(b"\xff\xd8\xff"):
+        raise RuntimeError("Official Akasha Forge branding payload is not a valid JPEG stream")
+    return raw
+
+
 def main() -> None:
-    raw = base64.b64decode(SOURCE_B64.read_text(encoding="utf-8").strip(), validate=True)
-    source = Image.open(BytesIO(raw)).convert("RGBA")
+    raw = _decode_brand_asset()
+    source = Image.open(BytesIO(raw))
+    source.load()  # fail here during CI if the complete source image is corrupt
+    source = source.convert("RGBA")
+
     if source.width != source.height:
         side = max(source.size)
         canvas = Image.new("RGBA", (side, side), (0, 0, 0, 255))
@@ -36,8 +59,6 @@ def main() -> None:
     source.resize((256, 256), Image.Resampling.LANCZOS).save(ICONS / "128x128@2x.png", "PNG")
     source.resize((512, 512), Image.Resampling.LANCZOS).save(APP_ICON, "PNG")
 
-    # Windows multi-resolution icon used by Tauri for the app executable,
-    # Start Menu/desktop shortcut and NSIS package branding.
     source.save(
         ICONS / "icon.ico",
         format="ICO",
@@ -55,7 +76,7 @@ def main() -> None:
         if not path.is_file() or path.stat().st_size == 0:
             raise RuntimeError(f"Branding asset generation failed: {path}")
 
-    print("Official Akasha Forge Windows branding assets generated successfully.")
+    print(f"Official Akasha Forge Windows branding assets generated successfully from {source.width}x{source.height} source.")
 
 
 if __name__ == "__main__":
