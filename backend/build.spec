@@ -46,6 +46,9 @@ for _pkg in (
     "pydantic",
     "pydantic_core",
     "email_validator",
+    # Distribution is named python-multipart, but its import package is
+    # `multipart`. FastAPI verifies the distribution metadata at route startup,
+    # so both package code and dist-info metadata must be frozen.
     "multipart",
     "cryptography",
     "dotenv",
@@ -57,6 +60,16 @@ for _pkg in (
     "imageio_ffmpeg",
 ):
     _add(_pkg)
+
+# FastAPI's ensure_multipart_is_installed() uses importlib.metadata against the
+# distribution name `python-multipart`; collect_all("multipart") alone does not
+# guarantee that metadata is present in the frozen application.
+try:
+    datas += copy_metadata("python-multipart")
+    print("[build.spec] collected metadata: python-multipart")
+except Exception as exc:  # noqa: BLE001
+    raise RuntimeError(f"python-multipart metadata is required by FastAPI: {exc}")
+hiddenimports += collect_submodules("multipart")
 
 # uvicorn loads its protocol/loop implementations dynamically.
 hiddenimports += collect_submodules("uvicorn")
