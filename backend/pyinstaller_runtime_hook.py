@@ -1,16 +1,27 @@
 """AF-DESKTOP-005 — PyInstaller runtime hook (executes before the frozen app).
 
-Keeps startup diagnosable in desktop/local mode without redesigning logging:
-console output is preserved, and a rotating-free file target is added under
-<AKASHA_DATA_DIR>/logs/backend.log so a packaged backend that fails to boot
-leaves a trace the Tauri shell (or user) can inspect. Best-effort: never blocks
-startup if the path is not writable.
+Keeps startup diagnosable in desktop/local mode and makes the Windows bundle
+robust against PyInstaller missing lazily-imported database packages.
 """
 import logging
 import os
+import sys
 from pathlib import Path
 
 os.environ.setdefault("PYTHONUNBUFFERED", "1")
+
+# The Windows build deliberately stages a private `_vendor` directory beside
+# AkashaForgeBackend.exe containing the desktop DB stack (montydb/pymongo/motor
+# and their transitive Python dependencies). Put it first on sys.path before any
+# application import occurs. This is intentionally independent of PyInstaller's
+# hidden-import analysis, which has proven unreliable for these lazy imports.
+try:
+    _exe_dir = Path(sys.executable).resolve().parent
+    _vendor = _exe_dir / "_vendor"
+    if _vendor.is_dir():
+        sys.path.insert(0, str(_vendor))
+except Exception:
+    pass
 
 _data_dir = os.environ.get("AKASHA_DATA_DIR")
 if _data_dir:
