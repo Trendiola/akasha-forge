@@ -30,6 +30,9 @@ function Step($msg) { Write-Host "`n=== $msg ===" -ForegroundColor Cyan }
 function Assert-Exists($path, $what) {
     if (-not (Test-Path $path)) { throw "Missing $what : $path" }
 }
+function Assert-NativeSuccess($what) {
+    if ($LASTEXITCODE -ne 0) { throw "$what failed with exit code $LASTEXITCODE" }
+}
 
 Step "1/11 Validate build tools"
 foreach ($tool in @("node", "yarn", "python", "cargo", "rustc")) {
@@ -45,22 +48,46 @@ Write-Host ("cargo  : " + (cargo --version))
 Step "2/11 Install frontend dependencies"
 Push-Location $FrontendDir
 yarn install --frozen-lockfile
+Assert-NativeSuccess "yarn install"
 Pop-Location
 
 Step "3/11 Build React frontend"
 Push-Location $FrontendDir
 yarn build
+Assert-NativeSuccess "React frontend build"
 Assert-Exists (Join-Path $FrontendDir "build\index.html") "React build output"
 Pop-Location
 
 if (-not $SkipBackend) {
-    Step "4/11 Install backend dependencies"
+    Step "4/11 Install and verify backend dependencies"
     Push-Location $BackendDir
-    if (-not (Test-Path ".venv")) { python -m venv .venv }
-    & .\.venv\Scripts\python.exe -m pip install --upgrade pip
-    & .\.venv\Scripts\pip.exe install -r requirements.txt
-    & .\.venv\Scripts\pip.exe install emergentintegrations --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/
-    & .\.venv\Scripts\pip.exe install pyinstaller
+    if (-not (Test-Path ".venv")) { python -m venv .venv; Assert-NativeSuccess "Python venv creation" }
+
+    $Py  = ".\.venv\Scripts\python.exe"
+    $Pip = ".\.venv\Scripts\pip.exe"
+
+    & $Py -m pip install --upgrade pip
+    Assert-NativeSuccess "pip upgrade"
+
+    # requirements.txt includes the private emergentintegrations package. Install
+    # the complete dependency set in ONE resolver transaction with the private
+    # index available; previously the first pip command failed at
+    # emergentintegrations and PowerShell continued, leaving python-multipart and
+    # other later requirements missing from the environment.
+    & $Pip install -r requirements.txt --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/
+    Assert-NativeSuccess "backend requirements install"
+
+    # Belt-and-suspenders verification for FastAPI form uploads and the packages
+    # that have caused frozen-runtime failures. This validates BOTH import code
+    # and python-multipart distribution metadata before PyInstaller starts.
+    & $Py -c "import importlib.metadata as m; import multipart, fastapi; assert m.version('python-multipart'); print('python-multipart', m.version('python-multipart')); print('fastapi', fastapi.__version__)"
+    Assert-NativeSuccess "python-multipart dependency verification"
+
+    & $Py -c "import montydb, pymongo, motor; print('desktop DB imports PASS')"
+    Assert-NativeSuccess "desktop DB dependency verification"
+
+    & $Pip install --upgrade pyinstaller
+    Assert-NativeSuccess "PyInstaller install"
 
     # Build a deterministic private vendor tree for the DB packages that are
     # imported lazily at runtime. This is copied beside the frozen exe and added
@@ -68,15 +95,18 @@ if (-not $SkipBackend) {
     Step "5/11 Prepare vendored desktop DB runtime"
     if (Test-Path $VendorBuild) { Remove-Item -Recurse -Force $VendorBuild }
     New-Item -ItemType Directory -Force -Path $VendorBuild | Out-Null
-    & .\.venv\Scripts\python.exe -m pip install --no-compile --target $VendorBuild `
+    & $Py -m pip install --no-compile --target $VendorBuild `
         "montydb==2.5.6" "pymongo==4.6.3" "motor==3.3.1"
+    Assert-NativeSuccess "vendored desktop DB install"
     Assert-Exists (Join-Path $VendorBuild "montydb") "vendored montydb package"
     Assert-Exists (Join-Path $VendorBuild "pymongo") "vendored pymongo package"
+    Assert-Exists (Join-Path $VendorBuild "motor") "vendored motor package"
 
     Step "6/11 Build frozen backend (PyInstaller one-dir)"
     if (Test-Path (Join-Path $BackendDir "build")) { Remove-Item -Recurse -Force (Join-Path $BackendDir "build") }
     if (Test-Path (Join-Path $BackendDir "dist"))  { Remove-Item -Recurse -Force (Join-Path $BackendDir "dist") }
     & .\.venv\Scripts\pyinstaller.exe build.spec --noconfirm --clean
+    Assert-NativeSuccess "PyInstaller backend build"
     Pop-Location
 
     # Copy the private vendor runtime beside the executable. This avoids relying
@@ -94,6 +124,7 @@ Assert-Exists $FrozenExe "AkashaForgeBackend.exe"
 Assert-Exists (Join-Path $FrozenDir "_internal") "_internal directory"
 Assert-Exists (Join-Path $FrozenDir "_vendor\montydb") "vendored montydb runtime"
 Assert-Exists (Join-Path $FrozenDir "_vendor\pymongo") "vendored pymongo runtime"
+Assert-Exists (Join-Path $FrozenDir "_vendor\motor") "vendored motor runtime"
 
 # Critical release gate: start the exact frozen exe in the same local mode the
 # Tauri shell uses. The installer is NOT built unless /api/health returns ok.
@@ -162,6 +193,8 @@ Copy-Item -Recurse -Force $FrozenDir $StageDir
 Assert-Exists (Join-Path $StageDir "AkashaForgeBackend.exe") "staged AkashaForgeBackend.exe"
 Assert-Exists (Join-Path $StageDir "_internal") "staged _internal directory"
 Assert-Exists (Join-Path $StageDir "_vendor\montydb") "staged vendored montydb"
+Assert-Exists (Join-Path $StageDir "_vendor\pymongo") "staged vendored pymongo"
+Assert-Exists (Join-Path $StageDir "_vendor\motor") "staged vendored motor"
 
 Step "10/11 Build Tauri desktop app (+ NSIS installer)"
 Push-Location $FrontendDir
@@ -170,6 +203,7 @@ if ($NoInstaller) {
 } else {
     yarn tauri build
 }
+Assert-NativeSuccess "Tauri desktop build"
 Pop-Location
 
 Step "11/11 Done — expected artifacts"
