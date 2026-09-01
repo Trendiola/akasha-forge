@@ -16,6 +16,7 @@ import {
   FolderOpen,
   Boxes,
   Cpu,
+  LayoutTemplate,
   type LucideIcon,
 } from "lucide-react";
 import type { ProviderCategory } from "@/types";
@@ -268,10 +269,11 @@ const m = (id: string): NavItem => {
 };
 
 export const NAV_SECTIONS: NavSection[] = [
-  { title: "Overview", items: [m("akasha-core"), m("akasha-brain")] },
+  { title: "Home", items: [m("akasha-core")] },
   {
-    title: "Create",
+    title: "Forge Modules",
     items: [
+      m("akasha-brain"),
       m("story-forge"),
       m("character-forge"),
       m("world-forge"),
@@ -279,22 +281,24 @@ export const NAV_SECTIONS: NavSection[] = [
       m("video-forge"),
       m("voice-forge"),
       m("music-forge"),
+      m("language-forge"),
       m("workflow-forge"),
       m("publish-forge"),
+      { label: "Provider Hub", path: "/providers", icon: Cpu },
     ],
   },
   {
     title: "Library",
     items: [
-      { label: "Assets", path: "/assets", icon: Boxes },
       { label: "Projects", path: "/projects", icon: FolderOpen },
+      { label: "Assets", path: "/assets", icon: Boxes },
+      { label: "Templates", path: "/templates", icon: LayoutTemplate },
       m("plugin-forge"),
     ],
   },
   {
     title: "System",
     items: [
-      { label: "Provider Hub", path: "/providers", icon: Cpu },
       { label: "Settings", path: "/settings", icon: Settings },
     ],
   },

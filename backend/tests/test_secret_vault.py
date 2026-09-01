@@ -79,7 +79,8 @@ def test_vault_file_ops(data_dir):
     assert "GET sk-abc" in out
     # 0600 perms on the vault file
     vf = Path(data_dir) / "vault" / "secrets.json"
-    assert oct(vf.stat().st_mode & 0o777) == "0o600"
+    if os.name != "nt":
+        assert oct(vf.stat().st_mode & 0o777) == "0o600"
 
 
 # --------------------- master-key lifecycle ---------------------------- #

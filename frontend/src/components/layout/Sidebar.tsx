@@ -1,10 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  PanelLeftClose,
-  PanelLeft,
-  Orbit,
-} from "lucide-react";
+import { PanelLeftClose, PanelLeft } from "lucide-react";
 import { NAV_SECTIONS, getModule } from "@/config/modules";
 import { useApp } from "@/store/app-context";
 import { cn } from "@/lib/utils";
@@ -17,7 +13,7 @@ import {
 
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useApp();
-  const width = sidebarCollapsed ? 76 : 276;
+  const width = sidebarCollapsed ? 72 : 264;
 
   return (
     <motion.aside
@@ -38,60 +34,26 @@ export function Sidebar() {
       />
 
       {/* Brand */}
-      <div
-        className={cn(
-          "relative flex h-[82px] shrink-0 items-center border-b border-white/[0.055]",
-          sidebarCollapsed ? "justify-center px-3" : "gap-3.5 px-4"
-        )}
-      >
-        <img src="/branding/akasha-forge-official.png" alt="AKASHA FORGE" className="h-11 w-11 shrink-0 rounded-xl object-contain shadow-[0_0_24px_rgba(109,59,255,.24)]" />
+      <div className={cn("sidebar-brand relative flex shrink-0 items-center border-b border-white/[0.055]", sidebarCollapsed ? "h-[72px] justify-center px-2" : "h-[88px] gap-2.5 px-3.5")}>
+        <div className="sidebar-emblem-wrap"><img src="/branding/akasha-emblem-transparent.png" alt="Official AKASHA emblem" className="sidebar-emblem" /></div>
 
         {!sidebarCollapsed && (
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="truncate font-display text-[14px] font-bold leading-none tracking-[-0.02em] text-white">
-                AKASHA FORGE
-              </p>
-
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.75)]" />
-            </div>
-
-            <p className="mt-1.5 truncate text-[9px] font-medium uppercase tracking-[0.17em] text-white/35">
+            <p className="font-display text-[14px] font-bold leading-none tracking-[.025em] text-white">AKASHA FORGE</p>
+            <p className="mt-2 whitespace-nowrap text-[7.5px] font-semibold uppercase tracking-[0.105em] text-white/38">
               The Creative Operating System
             </p>
           </div>
         )}
       </div>
 
-      {/* System identity */}
-      {!sidebarCollapsed && (
-        <div className="relative mx-3 mt-3 overflow-hidden rounded-xl border border-primary/[0.12] bg-primary/[0.045] px-3 py-2.5">
-          <div className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-primary via-violet-400 to-cyan-300" />
-
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">
-              <Orbit className="h-3.5 w-3.5 text-violet-300" />
-            </div>
-
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70">
-                Akasha System
-              </p>
-              <p className="mt-0.5 text-[9px] text-white/30">
-                Creative workspace ready
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Navigation */}
-      <nav className="relative flex-1 overflow-y-auto px-3 pb-4 pt-4">
+      <nav className="relative flex-1 overflow-y-auto px-2.5 pb-3 pt-3">
         <TooltipProvider delayDuration={0}>
           {NAV_SECTIONS.map((section) => (
-            <div key={section.title} className="mb-5">
+            <div key={section.title} className="mb-3.5">
               {!sidebarCollapsed && (
-                <div className="mb-2 flex items-center gap-2 px-2">
+                <div className="mb-1.5 flex items-center gap-2 px-2">
                   <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/28">
                     {section.title}
                   </p>
@@ -117,7 +79,7 @@ export function Sidebar() {
                         .replace(/\s+/g, "-")}`}
                       className={({ isActive }) =>
                         cn(
-                          "group relative flex min-h-[40px] items-center gap-3 overflow-hidden rounded-xl px-3 text-[13px] font-medium outline-none transition-all duration-200",
+                          "group relative flex min-h-[35px] items-center gap-2.5 overflow-hidden rounded-lg px-2.5 text-[12px] font-medium outline-none transition-all duration-200",
                           sidebarCollapsed && "justify-center px-0",
                           isActive
                             ? "akasha-active text-white"
@@ -145,7 +107,7 @@ export function Sidebar() {
 
                           <span
                             className={cn(
-                              "relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200",
+                              "relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-all duration-200",
                               isActive
                                 ? "bg-primary/[0.13]"
                                 : "bg-transparent group-hover:bg-white/[0.035]"
@@ -161,7 +123,7 @@ export function Sidebar() {
                           >
                             <Icon
                               className={cn(
-                                "h-[17px] w-[17px] transition-transform duration-200",
+                                "h-[15px] w-[15px] transition-transform duration-200",
                                 !isActive && "group-hover:scale-105"
                               )}
                             />

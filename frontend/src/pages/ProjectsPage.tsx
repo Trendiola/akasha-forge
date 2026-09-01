@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, CheckCircle2, FolderKanban } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, FolderKanban, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -16,16 +16,38 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useProjects, useDeleteProject } from "@/features/projects/hooks";
+import { useProjects, useDeleteProject, useUpdateProject } from "@/features/projects/hooks";
 import { CreateProjectDialog } from "@/features/projects/CreateProjectDialog";
 import { useApp } from "@/store/app-context";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import type { Project } from "@/types";
 
 export default function ProjectsPage() {
   const { data: projects = [], isLoading } = useProjects();
   const del = useDeleteProject();
+  const update = useUpdateProject();
   const { activeProjectId, setActiveProjectId } = useApp();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Project | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+
+  const openEdit = (project: Project) => {
+    setEditing(project);
+    setEditName(project.name);
+    setEditDescription(project.description ?? "");
+  };
+
+  const saveEdit = async () => {
+    if (!editing || !editName.trim()) return toast.error("Project name is required");
+    await update.mutateAsync({ id: editing.id, name: editName.trim(), description: editDescription });
+    setEditing(null);
+    toast.success("Project updated");
+  };
 
   const remove = async (id: string, name: string) => {
     await del.mutateAsync(id);
@@ -106,6 +128,9 @@ export default function ProjectsPage() {
                     {isActive ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> : null}
                     {isActive ? "Active" : "Set active"}
                   </Button>
+                  <Button size="icon" variant="ghost" onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`} data-testid={`project-edit-${p.id}`}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-destructive" data-testid={`project-delete-${p.id}`}>
@@ -139,6 +164,16 @@ export default function ProjectsPage() {
       )}
 
       <CreateProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <Dialog open={Boolean(editing)} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+        <DialogContent className="glass-strong sm:max-w-lg">
+          <DialogHeader><DialogTitle>Edit project</DialogTitle><DialogDescription>Update the project identity without changing its saved Forge data.</DialogDescription></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5"><Label htmlFor="edit-project-name">Name</Label><Input id="edit-project-name" value={editName} onChange={(e) => setEditName(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label htmlFor="edit-project-description">Description</Label><Textarea id="edit-project-description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={4} /></div>
+          </div>
+          <DialogFooter><Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button><Button onClick={saveEdit} disabled={update.isPending}>{update.isPending ? "Saving…" : "Save changes"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

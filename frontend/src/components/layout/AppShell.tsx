@@ -18,7 +18,7 @@ export function AppShell() {
           className="grain relative flex-1 overflow-y-auto"
           data-testid="module-outlet"
         >
-          <div className="module-enter mx-auto w-full max-w-[1600px] px-8 py-8">
+          <div className="module-enter mx-auto w-full max-w-[1680px] px-6 py-5">
             <Outlet />
           </div>
         </main>

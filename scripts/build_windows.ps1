@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    AF-DESKTOP-008 — reproducible Windows release build for Akasha Forge.
+    AF-DESKTOP-008 - reproducible Windows release build for Akasha Forge.
 
 .DESCRIPTION
     Developer/build-runner script (NOT for end users). Runs the release pipeline
@@ -35,25 +35,24 @@ function Assert-NativeSuccess($what) {
 }
 
 Step "1/11 Validate build tools"
-foreach ($tool in @("node", "yarn", "python", "cargo", "rustc")) {
+foreach ($tool in @("node", "npm", "cargo", "rustc")) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
         throw "Required tool '$tool' not found on PATH. See BUILD_DESKTOP_TAURI.md."
     }
 }
 Write-Host ("node   : " + (node --version))
-Write-Host ("yarn   : " + (yarn --version))
-Write-Host ("python : " + (python --version))
+Write-Host ("npm    : " + (npm.cmd --version))
 Write-Host ("cargo  : " + (cargo --version))
 
 Step "2/11 Install frontend dependencies"
 Push-Location $FrontendDir
-yarn install --frozen-lockfile
-Assert-NativeSuccess "yarn install"
+npm.cmd ci
+Assert-NativeSuccess "npm ci"
 Pop-Location
 
 Step "3/11 Build React frontend"
 Push-Location $FrontendDir
-yarn build
+npm.cmd run build
 Assert-NativeSuccess "React frontend build"
 Assert-Exists (Join-Path $FrontendDir "build\index.html") "React build output"
 Pop-Location
@@ -61,10 +60,17 @@ Pop-Location
 if (-not $SkipBackend) {
     Step "4/11 Install and verify backend dependencies"
     Push-Location $BackendDir
-    if (-not (Test-Path ".venv")) { python -m venv .venv; Assert-NativeSuccess "Python venv creation" }
+    if (-not (Test-Path ".venv\Scripts\python.exe")) {
+        if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
+            throw "Python 3.11 launcher not found. Install Python 3.11 x64 before building."
+        }
+        py -3.11 -m venv .venv
+        Assert-NativeSuccess "Python venv creation"
+    }
 
     $Py  = ".\.venv\Scripts\python.exe"
     $Pip = ".\.venv\Scripts\pip.exe"
+    Write-Host ("python : " + (& $Py --version))
 
     & $Py -m pip install --upgrade pip
     Assert-NativeSuccess "pip upgrade"
@@ -199,14 +205,14 @@ Assert-Exists (Join-Path $StageDir "_vendor\motor") "staged vendored motor"
 Step "10/11 Build Tauri desktop app (+ NSIS installer)"
 Push-Location $FrontendDir
 if ($NoInstaller) {
-    yarn tauri build --no-bundle
+    npx.cmd tauri build --no-bundle
 } else {
-    yarn tauri build
+    npx.cmd tauri build
 }
 Assert-NativeSuccess "Tauri desktop build"
 Pop-Location
 
-Step "11/11 Done — expected artifacts"
+Step "11/11 Done - expected artifacts"
 $ReleaseDir = Join-Path $TauriDir "target\release"
 Write-Host ("App executable : " + (Join-Path $ReleaseDir "Akasha Forge.exe"))
 Write-Host ("NSIS installer : " + (Join-Path $ReleaseDir "bundle\nsis\*-setup.exe"))

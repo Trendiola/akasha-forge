@@ -25,7 +25,7 @@ export function TopBar() {
 
   return (
     <header
-      className="relative z-10 flex h-[70px] shrink-0 items-center gap-3 border-b border-white/[0.06] bg-[hsl(var(--background)/0.58)] px-6 backdrop-blur-2xl"
+      className="relative z-10 flex h-[64px] shrink-0 items-center gap-3 border-b border-white/[0.055] bg-[hsl(var(--background)/0.7)] px-5 backdrop-blur-2xl"
       data-testid="topbar"
     >
       {/* subtle top energy line */}
@@ -43,7 +43,7 @@ export function TopBar() {
       <button
         onClick={() => setCommandOpen(true)}
         data-testid="global-search"
-        className="akasha-search group mx-auto flex h-10 min-w-[260px] max-w-[520px] flex-1 items-center gap-2.5 rounded-xl px-3.5 text-sm text-white/42 outline-none"
+        className="akasha-search group mx-auto flex h-9 min-w-[240px] max-w-[500px] flex-1 items-center gap-2.5 rounded-lg px-3.5 text-sm text-white/42 outline-none"
       >
         <Search className="h-4 w-4 shrink-0 transition-colors group-hover:text-violet-300" />
 

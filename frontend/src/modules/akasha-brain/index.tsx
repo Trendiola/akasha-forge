@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Sparkles, Send, Wand2, Copy, Cpu, Activity } from "lucide-react";
 import { getModule } from "@/config/modules";
@@ -50,6 +51,14 @@ export default function AkashaBrain() {
     <div className="animate-in fade-in duration-500" data-testid="module-akasha-brain">
       <PageHeader icon={mod.icon} title={mod.label} tagline={mod.tagline} description={mod.description} accent={mod.accent} />
 
+      {status && !status.online && (
+        <div className="akasha-panel mb-5 flex flex-wrap items-center gap-3 rounded-xl border-amber-400/20 px-4 py-3" role="status">
+          <Activity className="h-4 w-4 text-amber-300" />
+          <div className="min-w-0 flex-1"><p className="text-sm font-semibold">Akasha Brain is offline</p><p className="text-xs text-muted-foreground">Connect and validate a language-model provider before sending AI requests.</p></div>
+          <Button asChild size="sm" variant="outline"><Link to="/providers">Connect AI Providers</Link></Button>
+        </div>
+      )}
+
       <Tabs defaultValue="command">
         <TabsList className="mb-6 bg-secondary/40 p-1">
           {mod.tabs.map((t) => <TabsTrigger key={t.id} value={t.id} className="data-[state=active]:bg-background" data-testid={`brain-tab-${t.id}`}>{t.label}</TabsTrigger>)}
@@ -85,7 +94,7 @@ export default function AkashaBrain() {
             {project && <Badge variant="outline" className="gap-1"><Sparkles className="h-3 w-3 text-primary" /> Using {project.name} context</Badge>}
           </div>
           <Textarea rows={4} value={raw} onChange={(e) => setRaw(e.target.value)} placeholder="Describe your raw idea… e.g. 'a lone knight at dawn'" data-testid="optimizer-input" />
-          <Button onClick={runOptimize} disabled={optimize.isPending} className="gap-2" data-testid="optimizer-run">
+          <Button onClick={runOptimize} disabled={optimize.isPending || !status?.online} className="gap-2" data-testid="optimizer-run">
             <Wand2 className="h-4 w-4" /> {optimize.isPending ? "Optimizing…" : "Optimize prompt"}
           </Button>
           {optimized && (
@@ -110,7 +119,7 @@ export default function AkashaBrain() {
           )}
           <div className="flex items-end gap-2">
             <Textarea rows={2} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask about story, characters, world-building, workflow…" data-testid="assistant-input" />
-            <Button onClick={runAssist} disabled={assist.isPending} size="icon" className="h-[52px] w-[52px] shrink-0" data-testid="assistant-run">
+            <Button onClick={runAssist} disabled={assist.isPending || !status?.online} size="icon" className="h-[52px] w-[52px] shrink-0" data-testid="assistant-run" aria-label="Send message">
               <Send className="h-5 w-5" />
             </Button>
           </div>

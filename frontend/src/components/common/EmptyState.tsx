@@ -21,7 +21,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 px-6 py-16 text-center",
+        "akasha-panel flex min-h-[260px] flex-col items-center justify-center rounded-xl border-dashed px-6 py-12 text-center",
         className
       )}
       data-testid="empty-state"

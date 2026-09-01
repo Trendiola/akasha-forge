@@ -117,13 +117,14 @@ class TestProviderCRUD:
         assert d["status"] == "disabled"
         assert isinstance(d["response_ms"], int) and d["response_ms"] >= 1
 
-    def test_test_endpoint_ready(self, s):
+    def test_test_endpoint_configured_unverified(self, s):
         pid = TestProviderCRUD.created_id
         s.put(f"{API}/providers/{pid}", json={"enabled": True}, timeout=15)
         r = s.post(f"{API}/providers/{pid}/test", timeout=15)
         assert r.status_code == 200
         d = r.json()
-        assert d["status"] == "ready"
+        assert d["status"] == "configured"
+        assert "not verified" in d["message"].lower()
         assert d["response_ms"] >= 1
         assert d["provider"]["last_test_ms"] >= 1
 

@@ -21,16 +21,13 @@ BASE = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("
 # --------------------------- LOCAL BACKEND UNIT TESTS ---------------------------
 @pytest.fixture()
 def local_core(tmp_path, monkeypatch):
+    monkeypatch.setenv("AKASHA_DB_BACKEND", "local")
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("AKASHA_DATA_DIR", str(tmp_path / "AkashaForge"))
     import core as core_mod
     importlib.reload(core_mod)
     core_mod.init_storage()
     yield core_mod
-    # restore default remote module state for other tests in the session
-    monkeypatch.delenv("STORAGE_BACKEND", raising=False)
-    monkeypatch.delenv("AKASHA_DATA_DIR", raising=False)
-    importlib.reload(core_mod)
 
 
 def test_local_dirs_created(local_core):
@@ -90,14 +87,12 @@ def test_windows_style_data_dir(tmp_path, monkeypatch):
     win_like = str(tmp_path / "AppData" / "Roaming" / "AkashaForge")
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("AKASHA_DATA_DIR", win_like)
+    monkeypatch.setenv("AKASHA_DB_BACKEND", "local")
     import core as core_mod
     importlib.reload(core_mod)
     core_mod.init_storage()
     put = core_mod.put_object("akasha-forge/general/w.png", b"win", "image/png")
     assert core_mod.object_exists(put["path"])
-    monkeypatch.delenv("STORAGE_BACKEND", raising=False)
-    monkeypatch.delenv("AKASHA_DATA_DIR", raising=False)
-    importlib.reload(core_mod)
 
 
 # --------------------------- REMOTE-MODE API PRESERVATION ---------------------------

@@ -21,11 +21,11 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn("flex flex-wrap items-start justify-between gap-4 pb-6", className)}>
+    <div className={cn("relative mb-5 flex flex-wrap items-start justify-between gap-4 border-b border-white/[0.055] pb-5", className)}>
       <div className="flex items-start gap-4">
         {Icon && (
           <div
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/[0.08]"
             style={{
               background: `linear-gradient(140deg, ${accent}22, transparent)`,
               boxShadow: `0 0 24px -8px ${accent}66`,

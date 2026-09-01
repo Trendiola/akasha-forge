@@ -31,6 +31,25 @@ def project(session):
     session.delete(f"{API}/projects/{pid}")
 
 
+@pytest.fixture(scope="module")
+def uploaded_asset(session, project):
+    """Create shared persisted state explicitly instead of relying on test order."""
+    png = b"\x89PNG\r\n\x1a\n" + b"0" * 64
+    upload = session.post(
+        f"{API}/files/upload",
+        files={"file": ("test.png", io.BytesIO(png), "image/png")},
+        data={"category": "image-edit"},
+    )
+    assert upload.status_code == 200, upload.text
+    file_id = upload.json()["id"]
+    created = session.post(
+        f"{API}/projects/{project}/forge/image",
+        json={"kind": "asset", "title": "TEST_upload.png", "data": {"file_id": file_id, "source": "upload"}},
+    )
+    assert created.status_code == 200, created.text
+    return {"file_id": file_id, "asset_id": created.json()["id"]}
+
+
 class TestUploadAndAssetCreation:
     def test_upload_returns_id_and_url(self, session):
         png = b"\x89PNG\r\n\x1a\n" + b"0" * 64
@@ -44,29 +63,19 @@ class TestUploadAndAssetCreation:
         # store on class for reuse
         TestUploadAndAssetCreation.file_id = body["id"]
 
-    def test_create_asset_forge_item(self, session, project):
-        file_id = getattr(TestUploadAndAssetCreation, "file_id", None)
-        assert file_id, "upload test must run first"
-        r = session.post(
-            f"{API}/projects/{project}/forge/image",
-            json={"kind": "asset", "title": "TEST_upload.png", "data": {"file_id": file_id, "source": "upload"}},
-        )
-        assert r.status_code == 200, r.text
-        asset = r.json()
-        assert asset["kind"] == "asset"
-        assert asset["data"]["file_id"] == file_id
-        TestUploadAndAssetCreation.asset_id = asset["id"]
+    def test_create_asset_forge_item(self, session, project, uploaded_asset):
+        file_id = uploaded_asset["file_id"]
+        asset_id = uploaded_asset["asset_id"]
 
         # LIST kind=asset shows it
         r = session.get(f"{API}/projects/{project}/forge/image?kind=asset")
         ids = [x["id"] for x in r.json()]
-        assert asset["id"] in ids
+        assert asset_id in ids
 
 
 class TestCanvasStatePersistence:
-    def test_create_and_update_canvas_state(self, session, project):
-        asset_id = getattr(TestUploadAndAssetCreation, "asset_id", None)
-        assert asset_id
+    def test_create_and_update_canvas_state(self, session, project, uploaded_asset):
+        asset_id = uploaded_asset["asset_id"]
 
         # Create canvas_state pointing at asset
         r = session.post(
@@ -91,9 +100,8 @@ class TestCanvasStatePersistence:
 
 
 class TestGalleryMembership:
-    def test_create_gallery_and_add_asset(self, session, project):
-        asset_id = getattr(TestUploadAndAssetCreation, "asset_id", None)
-        assert asset_id
+    def test_create_gallery_and_add_asset(self, session, project, uploaded_asset):
+        asset_id = uploaded_asset["asset_id"]
 
         # Create gallery with empty membership
         r = session.post(

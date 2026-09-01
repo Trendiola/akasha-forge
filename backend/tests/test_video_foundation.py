@@ -3,6 +3,7 @@ import os
 import math
 import uuid
 import requests
+import pytest
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/") + "/api"
 BRAIN = f"{BASE}/brain"
@@ -37,6 +38,8 @@ def test_plan_generation_and_clip_count_and_fields():
         r = _plan(pid, target=120, clip=8)
         assert r.status_code == 200, r.text
         plan = r.json()
+        if plan.get("status") == "needs_configuration":
+            pytest.skip("Video planning requires an explicitly configured LLM provider")
         assert plan["status"] == "planned", plan
         expected = math.ceil(120 / 8)  # 15
         assert plan["estimated_total_clips"] == expected
@@ -65,6 +68,8 @@ def test_clip_count_scales_without_arch_change():
             r = _plan(pid, target=target, clip=clip)
             assert r.status_code == 200
             plan = r.json()
+            if plan.get("status") == "needs_configuration":
+                pytest.skip("Video planning requires an explicitly configured LLM provider")
             assert plan["estimated_total_clips"] == math.ceil(target / clip)
             assert len(plan["shots"]) == math.ceil(target / clip)
     finally:
@@ -75,6 +80,8 @@ def test_from_plan_one_job_per_shot_no_duplicates():
     pid = _new_project()
     try:
         plan = _plan(pid, target=32, clip=8).json()
+        if plan.get("status") == "needs_configuration":
+            pytest.skip("Video planning requires an explicitly configured LLM provider")
         n = plan["estimated_total_clips"]  # 4
         first = requests.post(f"{BASE}/video-jobs/from-plan", json={"project_id": pid})
         assert first.status_code == 200, first.text

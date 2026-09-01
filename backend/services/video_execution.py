@@ -232,7 +232,10 @@ async def retry_job(job_id: str) -> Dict[str, Any]:
 async def process_queue(limit: int = 1) -> Dict[str, Any]:
     """Advance up to `limit` queued jobs locally (conservative concurrency = 1)."""
     limit = max(1, min(int(limit or 1), 5))
-    queued = await db.video_render_jobs.find({"status": "queued"}, {"_id": 0}).sort("created_at", 1).to_list(limit)
+    # MontyDB's async compatibility cursor does not consistently enforce the
+    # ``to_list(length)`` bound on Windows. Slice defensively so the public
+    # concurrency contract is honored by every supported backend.
+    queued = (await db.video_render_jobs.find({"status": "queued"}, {"_id": 0}).sort("created_at", 1).to_list(limit))[:limit]
     results = []
     for q in queued:
         try:

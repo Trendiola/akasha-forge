@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import re
 from typing import Any, Dict, List
 
 from fastapi import HTTPException
@@ -60,9 +61,23 @@ def _ffprobe_duration(path: str) -> float:
              "-of", "default=noprint_wrappers=1:nokey=1", path],
             capture_output=True, text=True, timeout=30,
         )
-        return round(float(out.stdout.strip()), 3)
+        value = float(out.stdout.strip())
+        if value > 0:
+            return round(value, 3)
     except Exception:
-        return 0.0
+        pass
+    # Some desktop installations expose ffmpeg before ffprobe (and the
+    # imageio fallback contains ffmpeg only). Its metadata output still gives
+    # an accurate duration, so do not report a false zero.
+    try:
+        out = subprocess.run([FFMPEG, "-i", path], capture_output=True, text=True, timeout=30)
+        match = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", out.stderr or "")
+        if match:
+            hours, minutes, seconds = match.groups()
+            return round(int(hours) * 3600 + int(minutes) * 60 + float(seconds), 3)
+    except Exception:
+        pass
+    return 0.0
 
 
 async def _local_path_for_asset(asset_id: str) -> str:

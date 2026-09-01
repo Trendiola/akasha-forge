@@ -43,7 +43,7 @@ class ProviderAdapter:
             return {"ok": False, "message": "API key looks too short to be valid."}
         if " " in key or "\n" in key:
             return {"ok": False, "message": "API key must not contain whitespace."}
-        return {"ok": True, "message": "Key format validated locally. Ready."}
+        return {"ok": True, "message": "Key format is valid; provider connection is not verified."}
 
 
 _ADAPTERS: Dict[str, ProviderAdapter] = {}
@@ -217,7 +217,7 @@ async def test_provider(provider_id: str):
         key = decrypt(doc["api_key_encrypted"])
         check = adapter.validate(key, doc.get("base_url", ""))
         result = {
-            "status": STATUS_READY if check["ok"] else STATUS_ERROR,
+            "status": STATUS_CONFIGURED if check["ok"] else STATUS_ERROR,
             "message": check["message"],
         }
     response_ms = max(1, round((time.perf_counter() - start) * 1000))
@@ -227,7 +227,7 @@ async def test_provider(provider_id: str):
         {"id": provider_id},
         {"$set": {
             "status": result["status"],
-            "error_message": "" if result["status"] == STATUS_READY else result["message"],
+            "error_message": "" if result["status"] in (STATUS_READY, STATUS_CONFIGURED) else result["message"],
             "last_validated": now_iso(),
             "last_test_ms": response_ms,
         }},

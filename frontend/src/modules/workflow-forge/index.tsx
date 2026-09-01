@@ -108,7 +108,7 @@ export default function WorkflowForge() {
 
           {/* Editor */}
           {!selected ? (
-            <EmptyState icon={WorkflowIcon} accent={mod.accent} title="Select or create a workflow" description="Add nodes and connect them, then save. The graph persists in MongoDB." />
+            <EmptyState icon={WorkflowIcon} accent={mod.accent} title="Select or create a workflow" description="Add nodes and connect them, then save. The graph persists in the configured project database." />
           ) : (
             <div className="space-y-5">
               <div className="flex items-center gap-2">

@@ -21,6 +21,7 @@ import ProviderHub from "@/modules/provider-hub";
 import Assets from "@/pages/Assets";
 import ProjectsPage from "@/pages/ProjectsPage";
 import Settings from "@/pages/settings/Settings";
+import TemplatesPage from "@/pages/TemplatesPage";
 
 export default function App() {
   // Packaged desktop shells load over a non-server origin where deep-link
@@ -64,6 +65,7 @@ export default function App() {
             <Route path="plugins" element={<PluginForge />} />
             <Route path="providers" element={<ProviderHub />} />
             <Route path="assets" element={<Assets />} />
+            <Route path="templates" element={<TemplatesPage />} />
             <Route path="projects" element={<ProjectsPage />} />
             <Route path="settings/*" element={<Settings />} />
           </Route>
