@@ -25,7 +25,7 @@ export function ImageEditor({ accent = "#EC4899" }: { accent?: string }) {
   const createJob = useCreateImageJob();
   const createAsset = useCreateForgeItem(projectId ?? "", "image");
   const { data: imageProviders = [] } = useProviders("image");
-  const hasProvider = imageProviders.some((p) => p.enabled);
+  const hasProvider = imageProviders.some((p) => p.enabled && p.configured && p.status === "ready");
   const fileRef = useRef<HTMLInputElement>(null);
   const [op, setOp] = useState<string>("");
   const [prompt, setPrompt] = useState("");
@@ -58,11 +58,7 @@ export function ImageEditor({ accent = "#EC4899" }: { accent?: string }) {
   const generate = async () => {
     if (!hasProvider) return toast.error("Enable an image provider to generate. No fake generation is performed.");
     if (!prompt.trim()) return toast.error("Enter a prompt");
-    if (projectId) {
-      await createAsset.mutateAsync({ kind: "asset", title: prompt.slice(0, 40), data: { prompt, status: "queued", source: "generate" } });
-    }
-    toast.success("Generation queued — will run on the enabled provider");
-    setPrompt("");
+    toast.info("This provider is validated, but text-to-image execution is not available in this build. No placeholder asset was created.");
   };
 
   return (

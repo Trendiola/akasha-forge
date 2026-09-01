@@ -508,3 +508,55 @@
         display: contents !important;
     }
 }
+
+/* Akasha Core command center */
+.core-hero {
+    background:
+        radial-gradient(circle at 77% 47%, rgba(109, 59, 255, .22), transparent 29%),
+        radial-gradient(circle at 92% 5%, rgba(35, 211, 238, .08), transparent 23%),
+        linear-gradient(118deg, rgba(18, 11, 40, .94), rgba(7, 6, 17, .96) 58%, rgba(9, 5, 25, .94));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 30px 90px rgba(0,0,0,.32);
+}
+
+.core-stars {
+    position: absolute;
+    inset: 0;
+    opacity: .55;
+    background-image:
+        radial-gradient(circle, rgba(255,255,255,.65) 0 1px, transparent 1.4px),
+        radial-gradient(circle, rgba(151,126,255,.55) 0 1px, transparent 1.4px);
+    background-position: 0 0, 31px 47px;
+    background-size: 83px 83px, 127px 127px;
+    mask-image: linear-gradient(90deg, transparent, black 35%, black);
+}
+
+.core-orbit { position: absolute; border: 1px solid rgba(145, 113, 255, .1); border-radius: 50%; transform: rotate(-18deg); }
+.core-orbit-one { width: 520px; height: 190px; right: -55px; top: 100px; }
+.core-orbit-two { width: 390px; height: 390px; right: 15px; top: -35px; border-color: rgba(54, 211, 238, .07); }
+.core-cosmic-glow { position: absolute; width: 230px; height: 230px; border-radius: 50%; background: radial-gradient(circle, rgba(130,75,255,.28), rgba(109,59,255,.08) 44%, transparent 70%); filter: blur(8px); }
+.core-sigil-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(158, 126, 255, .17); animation: core-spin 26s linear infinite; }
+.core-sigil-ring::before, .core-sigil-ring::after { content: ""; position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #8e6cff; box-shadow: 0 0 17px rgba(142,108,255,.9); }
+.core-sigil-ring-outer { width: 260px; height: 260px; border-style: dashed; }
+.core-sigil-ring-outer::before { top: 26px; right: 40px; }.core-sigil-ring-outer::after { bottom: 12px; left: 78px; background: #4bdff0; }
+.core-sigil-ring-inner { width: 198px; height: 198px; animation-direction: reverse; animation-duration: 19s; }
+.core-sigil-ring-inner::before { top: 92px; left: -4px; }.core-sigil-ring-inner::after { top: 22px; right: 25px; width: 5px; height: 5px; }
+.core-orbit-node { position: absolute; z-index: 2; width: 5px; height: 5px; border-radius: 50%; background: #67e8f9; box-shadow: 0 0 15px #67e8f9; }
+.node-one { top: 25px; right: 83px; }.node-two { bottom: 32px; left: 72px; background: #e879f9; }.node-three { right: 31px; bottom: 104px; background: #fbbf24; }
+
+.status-card, .forge-module-card, .project-preview {
+    border: 1px solid rgba(255,255,255,.065);
+    background: linear-gradient(145deg, rgba(255,255,255,.033), rgba(255,255,255,.014));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.022);
+}
+.forge-module-card, .project-preview { transition: border-color .18s ease, background .18s ease, transform .18s ease; }
+.forge-module-card:hover, .project-preview:hover { transform: translateY(-2px); border-color: rgba(129,91,255,.28); background: linear-gradient(145deg, rgba(109,59,255,.065), rgba(255,255,255,.018)); }
+.quick-action { display: flex; min-height: 70px; align-items: center; gap: 11px; border: 1px solid rgba(255,255,255,.055); border-radius: 14px; background: rgba(255,255,255,.018); padding: 12px; transition: .18s ease; }
+.quick-action:hover { border-color: rgba(129,91,255,.25); background: rgba(109,59,255,.05); }
+.quick-action-icon { display: flex; width: 34px; height: 34px; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 10px; background: rgba(109,59,255,.1); color: #a78bfa; }
+.quick-action strong, .quick-action small { display: block; }.quick-action strong { font-size: 12px; color: rgba(255,255,255,.78); }.quick-action small { margin-top: 3px; font-size: 10px; color: rgba(255,255,255,.28); }
+@keyframes core-spin { to { transform: rotate(342deg); } }
+
+@media (max-width: 1023px) {
+    .core-hero { min-height: 0; }
+    .core-hero .core-orbit, .core-hero [class*="core-sigil"], .core-hero .core-orbit-node, .core-hero .core-cosmic-glow { opacity: .55; }
+}

@@ -1,7 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Sparkles,
   PanelLeftClose,
   PanelLeft,
   Orbit,
@@ -45,9 +44,7 @@ export function Sidebar() {
           sidebarCollapsed ? "justify-center px-3" : "gap-3.5 px-4"
         )}
       >
-        <div className="akasha-brand-mark flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
-          <Sparkles className="relative z-10 h-[19px] w-[19px] text-white" />
-        </div>
+        <img src="/branding/akasha-forge-official.png" alt="AKASHA FORGE" className="h-11 w-11 shrink-0 rounded-xl object-contain shadow-[0_0_24px_rgba(109,59,255,.24)]" />
 
         {!sidebarCollapsed && (
           <div className="min-w-0 flex-1">

@@ -4,8 +4,9 @@ import { cn } from "@/lib/utils";
 
 export function AiStatus() {
   const { data: providers = [] } = useProviders();
-  const enabled = providers.filter((p) => p.enabled);
-  const online = enabled.length > 0;
+  const enabled = providers.filter((p) => p.enabled && p.configured);
+  const ready = enabled.filter((p) => p.status === "ready");
+  const online = ready.length > 0;
 
   return (
     <Popover>
@@ -29,7 +30,7 @@ export function AiStatus() {
             />
           </span>
           <span className="text-muted-foreground">AI</span>
-          <span className="font-medium">{online ? `${enabled.length} active` : "Idle"}</span>
+          <span className="font-medium">{online ? `${ready.length} ready` : enabled.length ? "Unverified" : "Offline"}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64">
@@ -45,7 +46,7 @@ export function AiStatus() {
             {enabled.map((p) => (
               <li key={p.id} className="flex items-center justify-between text-sm">
                 <span>{p.name}</span>
-                <span className="text-[10px] uppercase text-emerald-400">{p.category}</span>
+                <span className={cn("text-[10px] uppercase", p.status === "ready" ? "text-emerald-400" : "text-amber-300")}>{p.status}</span>
               </li>
             ))}
           </ul>
